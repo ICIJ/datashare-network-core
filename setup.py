@@ -9,7 +9,7 @@ if py_version < (3, 6):
 with open("README.md", "r") as fh:
     long_description = fh.read()
 
-setup(name='datashare-network',
+setup(name='datashare-network-core',
       version='0.1',
       packages=find_packages(),
       description="Core Datashare Network Library",
