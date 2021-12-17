@@ -1,5 +1,9 @@
+from collections import OrderedDict
+from typing import List
+
 from dsnet.crypto import compute_address, compute_sym_key, pad_message, encrypt, decrypt, unpad_message, get_public_key, \
     compute_dhke
+
 
 # Length of exchanged messages in bytes.
 PH_MESSAGE_LENGTH: int = 2048
@@ -32,11 +36,10 @@ class Query:
         self.public_key = public_key
         self.payload = payload
 
-class Response:
-    def __init__(self, address: bytes, payload: str):
+class Message:
+    def __init__(self, address: bytes, payload: bytes):
         self.address = address
         self.payload = payload
-
 
 class Conversation:
     def __init__(self, private_key: bytes, other_public_key: bytes) -> None:
@@ -46,33 +49,48 @@ class Conversation:
         self.nb_sent_messages = 0
         self.nb_recv_messages = 0
         self.dh_key = compute_dhke(private_key, other_public_key)
-        self._receiving_pigeon_holes = list()
-
-    def create_next_receiving_pigeon_hole(self) -> PigeonHole:
-        hole = self._create_pigeon_hole()
-        self._receiving_pigeon_holes.append(hole)
-        return hole
-
+        self._pigeon_holes: OrderedDict[str, PigeonHole] = OrderedDict()
+        self._messages: List[str] = list()
 
     def create_query(self, payload: str) -> Query:
         """
         Create a new query
         """
-        self._receiving_pigeon_holes.append(self.create_sending_pigeon_hole())
+        ph = self.create_sending_pigeon_hole()
+        self._pigeon_holes[ph.address] = ph
         return Query(self.public_key, payload)
 
 
-    def create_response(self, payload: str) -> Response:
+    def create_response(self, payload: str) -> Message:
         """
         Create a response to query
         """
-        return Response(self.create_next_receiving_pigeon_hole().address, payload)
+        ph = self.create_next_receiving_pigeon_hole()
+        return Message(ph.address, ph.encrypt(payload))
+
+
+    def add_message(self, message: Message) -> None:
+        """
+        Add a message to the conversation
+        """
+        self.create_next_receiving_pigeon_hole()
+        ph = self._pigeon_holes[message.address]
+        cleartext = ph.decrypt(message.payload)
+        self._messages.append(cleartext)
 
 
     @property
-    def last_address(self):
-        return self._receiving_pigeon_holes[-1].address
+    def last_address(self) -> bytes:
+        return self._pigeon_holes[next(reversed(self._pigeon_holes))].address
 
+    @property
+    def last_message(self) -> str:
+        return self._messages[-1]
+
+    def create_next_receiving_pigeon_hole(self) -> PigeonHole:
+        ph = self._create_pigeon_hole()
+        self._pigeon_holes[ph.address] = ph
+        return ph
 
     def create_sending_pigeon_hole(self) -> PigeonHole:
         return self._create_pigeon_hole(for_sending=True)
@@ -88,12 +106,10 @@ class Conversation:
         return pigeon_hole
 
     def is_receiving(self, address: bytes) -> bool:
-        return address in [ph.address for ph in self._receiving_pigeon_holes]
+        return address in self._pigeon_holes
 
     def pigeon_hole_for_address(self, address: bytes) -> PigeonHole:
-        phs = [ph for ph in self._receiving_pigeon_holes if ph.address == address]
-        if len(phs) > 1: print('WARN: several pigeon holes %s for address %s' % (phs, address.hex()))
-        return phs[0]
+        return self._pigeon_holes.get(address)
 
     def __str__(self) -> str:
         return self.__repr__()

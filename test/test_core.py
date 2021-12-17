@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from dsnet.core import PigeonHole, Conversation
+from dsnet.core import PigeonHole, Conversation, Message
 from dsnet.crypto import gen_key_pair, compute_dhke
 
 
@@ -47,5 +47,14 @@ class TestConversation(TestCase):
         response = conversation.create_response(payload)
 
         self.assertEquals(alice_conversation.last_address, response.address)
-        self.assertEquals(payload, response.payload)
+        self.assertIsNotNone(payload, response.payload)
 
+
+    def test_alice_decrypt_message_from_bob(self):
+        alice_conversation = Conversation(self.conversation_keys.private, self.bob_keys.public)
+        alice_conversation.create_query('query')
+        bob_conversation = Conversation(self.bob_keys.private, self.conversation_keys.public)
+        response = bob_conversation.create_response('response')
+
+        alice_conversation.add_message(response)
+        self.assertEquals('response', alice_conversation.last_message)
