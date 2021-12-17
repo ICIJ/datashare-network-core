@@ -32,6 +32,11 @@ class Query:
         self.public_key = public_key
         self.payload = payload
 
+class Response:
+    def __init__(self, address: bytes, payload: str):
+        self.address = address
+        self.payload = payload
+
 
 class Conversation:
     def __init__(self, private_key: bytes, other_public_key: bytes) -> None:
@@ -43,17 +48,30 @@ class Conversation:
         self.dh_key = compute_dhke(private_key, other_public_key)
         self._receiving_pigeon_holes = list()
 
-    async def create_next_receiving_pigeon_hole(self) -> PigeonHole:
+    def create_next_receiving_pigeon_hole(self) -> PigeonHole:
         hole = self._create_pigeon_hole()
         self._receiving_pigeon_holes.append(hole)
         return hole
 
 
-    def create_query(self, query: str) -> Query:
+    def create_query(self, payload: str) -> Query:
         """
         Create a new query
         """
-        return Query(self.public_key, query)
+        self._receiving_pigeon_holes.append(self.create_sending_pigeon_hole())
+        return Query(self.public_key, payload)
+
+
+    def create_response(self, payload: str) -> Response:
+        """
+        Create a response to query
+        """
+        return Response(self.create_next_receiving_pigeon_hole().address, payload)
+
+
+    @property
+    def last_address(self):
+        return self._receiving_pigeon_holes[-1].address
 
 
     def create_sending_pigeon_hole(self) -> PigeonHole:

@@ -35,6 +35,17 @@ class TestConversation(TestCase):
 
         self.assertEquals(self.conversation_keys.public, query.public_key)
         self.assertEquals('query', query.payload)
+        self.assertIsNotNone(conversation.last_address)
 
 
+    def test_bob_receives_query_conversation(self):
+        alice_conversation = Conversation(self.conversation_keys.private, self.bob_keys.public)
+        alice_conversation.create_query('query')
+        conversation = Conversation(self.bob_keys.private, self.conversation_keys.public)
+        payload = 'query response'
+
+        response = conversation.create_response(payload)
+
+        self.assertEquals(alice_conversation.last_address, response.address)
+        self.assertEquals(payload, response.payload)
 
