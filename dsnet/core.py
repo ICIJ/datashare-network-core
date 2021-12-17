@@ -27,6 +27,12 @@ class PigeonHole:
         return 'PigeonHole(address: %s nb: %s)' % (self.address.hex(), self.number)
 
 
+class Query:
+    def __init__(self, public_key: bytes, payload: str):
+        self.public_key = public_key
+        self.payload = payload
+
+
 class Conversation:
     def __init__(self, private_key: bytes, other_public_key: bytes) -> None:
         self.private_key = private_key
@@ -41,6 +47,14 @@ class Conversation:
         hole = self._create_pigeon_hole()
         self._receiving_pigeon_holes.append(hole)
         return hole
+
+
+    def create_query(self, query: str) -> Query:
+        """
+        Create a new query
+        """
+        return Query(self.public_key, query)
+
 
     def create_sending_pigeon_hole(self) -> PigeonHole:
         return self._create_pigeon_hole(for_sending=True)

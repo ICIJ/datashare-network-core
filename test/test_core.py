@@ -1,7 +1,8 @@
 from unittest import TestCase
 
-from dsnet.core import PigeonHole
+from dsnet.core import PigeonHole, Conversation
 from dsnet.crypto import gen_key_pair, compute_dhke
+
 
 
 class TestPigeonHole(TestCase):
@@ -19,6 +20,21 @@ class TestPigeonHole(TestCase):
         encrypted_response = self.ph_bob.encrypt('response')
         self.assertEqual('response', self.ph_alice.decrypt(encrypted_response))
 
+
+class TestConversation(TestCase):
+    def setUp(self) -> None:
+        self.bob_keys = gen_key_pair()
+        self.alice_keys = gen_key_pair()
+        self.conversation_keys = gen_key_pair()
+
+
+    def test_alice_sends_query_conversation(self):
+        conversation = Conversation(self.conversation_keys.private, self.bob_keys.public)
+
+        query = conversation.create_query('query')
+
+        self.assertEquals(self.conversation_keys.public, query.public_key)
+        self.assertEquals('query', query.payload)
 
 
 
