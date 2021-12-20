@@ -77,3 +77,14 @@ class TestConversation(TestCase):
         self.assertEquals(bob_conversation.nb_recv_messages, alice_conversation.nb_sent_messages)
         self.assertEquals(bob_conversation.nb_sent_messages, alice_conversation.nb_recv_messages)
         self.assertEquals('message from Alice', bob_conversation.last_message)
+
+    def test_is_receiving_address(self):
+        alice_conversation = Conversation(self.conversation_keys.private, self.bob_keys.public, querier=True)
+        bob_conversation = Conversation(self.bob_keys.private, self.conversation_keys.public)
+
+        bob_conversation.add_query(alice_conversation.create_query('query'))
+        response = bob_conversation.create_response('response')
+        message = alice_conversation.create_response('message')
+
+        self.assertTrue(alice_conversation.is_receiving(response.address))
+        self.assertTrue(bob_conversation.is_receiving(message.address))
