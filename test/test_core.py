@@ -5,7 +5,6 @@ from dsnet.core import PigeonHole, Conversation, Message
 from dsnet.crypto import gen_key_pair, compute_dhke
 
 
-
 class TestPigeonHole(TestCase):
     def setUp(self) -> None:
         self.bob_keys = gen_key_pair()
@@ -28,7 +27,6 @@ class TestConversation(TestCase):
         self.alice_keys = gen_key_pair()
         self.conversation_keys = gen_key_pair()
 
-
     def test_alice_sends_query_conversation(self):
         conversation = Conversation(self.conversation_keys.private, self.bob_keys.public)
 
@@ -37,7 +35,6 @@ class TestConversation(TestCase):
         self.assertEquals(self.conversation_keys.public, query.public_key)
         self.assertEquals('query', query.payload)
         self.assertIsNotNone(conversation.last_address)
-
 
     def test_bob_receives_query_conversation(self):
         alice_conversation = Conversation(self.conversation_keys.private, self.bob_keys.public)
@@ -49,7 +46,6 @@ class TestConversation(TestCase):
 
         self.assertEquals(alice_conversation.last_address, response.address)
         self.assertIsNotNone(payload, response.payload)
-
 
     def test_alice_decrypt_message_from_bob(self):
         alice_conversation = Conversation(self.conversation_keys.private, self.bob_keys.public)

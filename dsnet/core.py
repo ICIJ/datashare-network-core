@@ -36,10 +36,12 @@ class Query:
         self.public_key = public_key
         self.payload = payload
 
+
 class Message:
     def __init__(self, address: bytes, payload: bytes):
         self.address = address
         self.payload = payload
+
 
 class Conversation:
     def __init__(self, private_key: bytes, other_public_key: bytes) -> None:
@@ -60,14 +62,12 @@ class Conversation:
         self._pigeon_holes[ph.address] = ph
         return Query(self.public_key, payload)
 
-
     def create_response(self, payload: str) -> Message:
         """
         Create a response to query
         """
         ph = self.create_next_receiving_pigeon_hole()
         return Message(ph.address, ph.encrypt(payload))
-
 
     def add_message(self, message: Message) -> None:
         """
@@ -77,7 +77,6 @@ class Conversation:
         ph = self._pigeon_holes[message.address]
         cleartext = ph.decrypt(message.payload)
         self._messages.append(cleartext)
-
 
     @property
     def last_address(self) -> bytes:
