@@ -56,15 +56,14 @@ class TestConversation(TestCase):
         alice_conversation.add_message(response)
         self.assertEquals('response', alice_conversation.last_message)
 
-    @unittest.skip('todo receiving/sending context to fix')
     def test_bob_decrypt_message_from_alice(self):
         alice_conversation = Conversation(self.conversation_keys.private, self.bob_keys.public)
         alice_conversation.create_query('query')
         bob_conversation = Conversation(self.bob_keys.private, self.conversation_keys.public)
-        message = bob_conversation.create_response('message from Bob')
+        message = bob_conversation.create_response('response from Bob')
         alice_conversation.add_message(message)
-        response = alice_conversation.create_response('response from Alice')
+        response = alice_conversation.create_response('message from Alice', for_sending=True)
 
         bob_conversation.add_message(response)
 
-        self.assertEquals('response from Alice', bob_conversation.last_message)
+        self.assertEquals('message from Alice', bob_conversation.last_message)

@@ -62,11 +62,15 @@ class Conversation:
         self._pigeon_holes[ph.address] = ph
         return Query(self.public_key, payload)
 
-    def create_response(self, payload: str) -> Message:
+    def create_response(self, payload: str, for_sending=False) -> Message:
         """
         Create a response to query
         """
-        ph = self.create_next_receiving_pigeon_hole()
+        if for_sending:
+            ph = self.create_sending_pigeon_hole()
+            self._pigeon_holes[ph.address] = ph
+        else:
+            ph = self.create_next_receiving_pigeon_hole()
         return Message(ph.address, ph.encrypt(payload))
 
     def add_message(self, message: Message) -> None:
