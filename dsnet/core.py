@@ -27,7 +27,7 @@ class PigeonHole:
         padded_payload = decrypt(ciphered_payload, self.sym_key)
         return unpad_message(padded_payload).decode('utf-8')
 
-    def __str__(self) -> str:
+    def __repr__(self):
         return 'PigeonHole(address: %s nb: %s)' % (self.address.hex(), self.number)
 
 
@@ -44,43 +44,47 @@ class Message:
 
 
 class Conversation:
-    def __init__(self, private_key: bytes, other_public_key: bytes) -> None:
+    def __init__(self, private_key: bytes, other_public_key: bytes, querier=False) -> None:
         self.private_key = private_key
         self.public_key = get_public_key(private_key)
         self.other_public_key = other_public_key
+        self.querier = querier
         self.nb_sent_messages = 0
         self.nb_recv_messages = 0
         self.dh_key = compute_dhke(private_key, other_public_key)
-        self._pigeon_holes: OrderedDict[str, PigeonHole] = OrderedDict()
+        self._pigeon_holes: OrderedDict[bytes, PigeonHole] = OrderedDict()
         self._messages: List[str] = list()
 
     def create_query(self, payload: str) -> Query:
         """
-        Create a new query
+        Creates a new query
         """
-        ph = self.create_sending_pigeon_hole()
-        self._pigeon_holes[ph.address] = ph
+        self._create_and_save_next_pigeon_hole()
+        self.nb_sent_messages += 1
         return Query(self.public_key, payload)
 
-    def create_response(self, payload: str, for_sending=False) -> Message:
+    def create_response(self, payload: str) -> Message:
         """
         Create a response to query
         """
-        if for_sending:
-            ph = self.create_sending_pigeon_hole()
-            self._pigeon_holes[ph.address] = ph
-        else:
-            ph = self.create_next_receiving_pigeon_hole()
+        ph = self._create_recipient_pigeon_hole()
+        self.nb_sent_messages += 1
+        self._create_and_save_next_pigeon_hole()
         return Message(ph.address, ph.encrypt(payload))
+
+    def add_query(self, query: Query) -> None:
+        self._messages.append(query.payload)
+        self.nb_recv_messages += 1
 
     def add_message(self, message: Message) -> None:
         """
         Add a message to the conversation
         """
-        self.create_next_receiving_pigeon_hole()
+        self.nb_recv_messages += 1
         ph = self._pigeon_holes[message.address]
         cleartext = ph.decrypt(message.payload)
         self._messages.append(cleartext)
+        self._create_and_save_next_pigeon_hole()
 
     @property
     def last_address(self) -> bytes:
@@ -90,23 +94,18 @@ class Conversation:
     def last_message(self) -> str:
         return self._messages[-1]
 
-    def create_next_receiving_pigeon_hole(self) -> PigeonHole:
+    def _create_and_save_next_pigeon_hole(self) -> PigeonHole:
         ph = self._create_pigeon_hole()
         self._pigeon_holes[ph.address] = ph
         return ph
 
-    def create_sending_pigeon_hole(self) -> PigeonHole:
+    def _create_recipient_pigeon_hole(self):
         return self._create_pigeon_hole(for_sending=True)
 
     def _create_pigeon_hole(self, for_sending=False) -> PigeonHole:
-        if for_sending:
-            pigeon_hole = PigeonHole(self.dh_key, self.public_key, self.nb_sent_messages)
-            self.nb_sent_messages += 1
-        else:
-            pigeon_hole = PigeonHole(self.dh_key, self.other_public_key, self.nb_recv_messages)
-            self.nb_recv_messages += 1
-
-        return pigeon_hole
+        nb_messages = self.nb_sent_messages if for_sending else self.nb_recv_messages
+        return PigeonHole(self.dh_key, self.public_key, nb_messages) if self.querier \
+            else PigeonHole(self.dh_key, self.other_public_key, nb_messages)
 
     def is_receiving(self, address: bytes) -> bool:
         return address in self._pigeon_holes
