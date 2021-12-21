@@ -94,6 +94,12 @@ class Conversation:
     def last_message(self) -> str:
         return self._messages[-1]
 
+    def is_receiving(self, address: bytes) -> bool:
+        return address in self._pigeon_holes
+
+    def pigeon_hole_for_address(self, address: bytes) -> PigeonHole:
+        return self._pigeon_holes.get(address)
+
     def _create_and_save_next_pigeon_hole(self) -> PigeonHole:
         ph = self._create_pigeon_hole()
         self._pigeon_holes[ph.address] = ph
@@ -106,12 +112,6 @@ class Conversation:
         nb_messages = self.nb_sent_messages if for_sending else self.nb_recv_messages
         return PigeonHole(self.dh_key, self.public_key, nb_messages) if self.querier \
             else PigeonHole(self.dh_key, self.other_public_key, nb_messages)
-
-    def is_receiving(self, address: bytes) -> bool:
-        return address in self._pigeon_holes
-
-    def pigeon_hole_for_address(self, address: bytes) -> PigeonHole:
-        return self._pigeon_holes.get(address)
 
     def __str__(self) -> str:
         return self.__repr__()
