@@ -84,7 +84,7 @@ class TestConversation(TestCase):
 
         bob_conversation.add_query(alice_conversation.create_query('query'))
         response = bob_conversation.create_response('response')
-        message = alice_conversation.create_response('message')
-
         self.assertTrue(alice_conversation.is_receiving(response.address))
+
+        message = alice_conversation.create_response('message')
         self.assertTrue(bob_conversation.is_receiving(message.address))
