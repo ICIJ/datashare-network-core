@@ -1,4 +1,5 @@
 import sys
+from dsnet import __version__
 
 from setuptools import setup, find_packages
 
@@ -10,7 +11,7 @@ with open("README.md", "r") as fh:
     long_description = fh.read()
 
 setup(name='datashare-network-core',
-      version='0.1',
+      version=__version__,
       packages=find_packages(),
       description="Core Datashare Network Library",
       use_pipfile=True,
