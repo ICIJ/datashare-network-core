@@ -10,9 +10,10 @@ PH_MESSAGE_LENGTH: int = 2048
 
 
 class PigeonHole:
-    def __init__(self, dh_key: bytes, sender_public_key: bytes, message_number: int = 0) -> None:
-        self.address = compute_address(dh_key, sender_public_key, message_number)
-        self.sym_key = compute_sym_key(dh_key, sender_public_key, message_number)
+    def __init__(self, private_key_for_dh: bytes, public_key_for_dh: bytes, sender_public_key: bytes, message_number: int = 0) -> None:
+        self.dh_key = compute_dhke(private_key_for_dh, public_key_for_dh)
+        self.address = compute_address(self.dh_key, sender_public_key, message_number)
+        self.sym_key = compute_sym_key(self.dh_key, sender_public_key, message_number)
         self.message_number = message_number
 
     def encrypt(self, message: str) -> bytes:
@@ -51,7 +52,6 @@ class Conversation:
         self.querier = querier
         self.nb_sent_messages = 0
         self.nb_recv_messages = 0
-        self.dh_key = compute_dhke(private_key, other_public_key)
         self._pigeonholes: OrderedDict[bytes, PigeonHole] = OrderedDict()
         self._messages: List[str] = list()
 
@@ -110,13 +110,13 @@ class Conversation:
 
     def _create_pigeonhole(self, for_sending=False) -> PigeonHole:
         nb_messages = self.nb_sent_messages if for_sending else self.nb_recv_messages
-        return PigeonHole(self.dh_key, self.public_key, nb_messages) if self.querier \
-            else PigeonHole(self.dh_key, self.other_public_key, nb_messages)
+        sender_public_key = self.public_key if self.querier else self.other_public_key
+        return PigeonHole(self.private_key, self.other_public_key, sender_public_key, nb_messages)
 
     def __str__(self) -> str:
         return self.__repr__()
 
     def __repr__(self) -> str:
-        return 'Conversation(dhk: %s sent: %d recv: %d)' % \
-               (self.dh_key.hex(), self.nb_sent_messages, self.nb_recv_messages)
+        return 'Conversation(public_key: %s sent: %d recv: %d)' % \
+               (self.public_key.hex(), self.nb_sent_messages, self.nb_recv_messages)
 

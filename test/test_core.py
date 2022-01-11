@@ -8,8 +8,8 @@ class TestPigeonHole(TestCase):
     def setUp(self) -> None:
         self.bob_keys = gen_key_pair()
         self.query_keys = gen_key_pair()
-        self.ph_alice = PigeonHole(compute_dhke(self.query_keys.private, self.bob_keys.public), self.query_keys.public)
-        self.ph_bob = PigeonHole(compute_dhke(self.bob_keys.private, self.query_keys.public), self.query_keys.public)
+        self.ph_alice = PigeonHole(self.query_keys.private, self.bob_keys.public, self.query_keys.public)
+        self.ph_bob = PigeonHole(self.bob_keys.private, self.query_keys.public, self.query_keys.public)
 
     def test_alice_sends_query_to_bob(self):
         encrypted_message = self.ph_alice.encrypt('message')
