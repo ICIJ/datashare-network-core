@@ -10,10 +10,10 @@ PH_MESSAGE_LENGTH: int = 2048
 
 
 class PigeonHole:
-    def __init__(self, dh_key: bytes, sender_public_key: bytes, number: int = 0) -> None:
-        self.address = compute_address(dh_key, sender_public_key, number)
-        self.sym_key = compute_sym_key(dh_key, sender_public_key, number)
-        self.number = number
+    def __init__(self, dh_key: bytes, sender_public_key: bytes, message_number: int = 0) -> None:
+        self.address = compute_address(dh_key, sender_public_key, message_number)
+        self.sym_key = compute_sym_key(dh_key, sender_public_key, message_number)
+        self.message_number = message_number
 
     def encrypt(self, message: str) -> bytes:
         """
@@ -28,7 +28,7 @@ class PigeonHole:
         return unpad_message(padded_payload).decode('utf-8')
 
     def __repr__(self):
-        return 'PigeonHole(address: %s nb: %s)' % (self.address.hex(), self.number)
+        return 'PigeonHole(address: %s nb: %s)' % (self.address.hex(), self.message_number)
 
 
 class Query:
@@ -52,14 +52,14 @@ class Conversation:
         self.nb_sent_messages = 0
         self.nb_recv_messages = 0
         self.dh_key = compute_dhke(private_key, other_public_key)
-        self._pigeon_holes: OrderedDict[bytes, PigeonHole] = OrderedDict()
+        self._pigeonholes: OrderedDict[bytes, PigeonHole] = OrderedDict()
         self._messages: List[str] = list()
 
     def create_query(self, payload: str) -> Query:
         """
         Creates a new query
         """
-        self._create_and_save_next_pigeon_hole()
+        self._create_and_save_next_pigeonhole()
         self.nb_sent_messages += 1
         return Query(self.public_key, payload)
 
@@ -67,9 +67,9 @@ class Conversation:
         """
         Create a response to query
         """
-        ph = self._create_recipient_pigeon_hole()
+        ph = self._create_recipient_pigeonhole()
         self.nb_sent_messages += 1
-        self._create_and_save_next_pigeon_hole()
+        self._create_and_save_next_pigeonhole()
         return Message(ph.address, ph.encrypt(payload))
 
     def add_query(self, query: Query) -> None:
@@ -81,34 +81,34 @@ class Conversation:
         Add a message to the conversation
         """
         self.nb_recv_messages += 1
-        ph = self._pigeon_holes[message.address]
+        ph = self._pigeonholes[message.address]
         cleartext = ph.decrypt(message.payload)
         self._messages.append(cleartext)
-        self._create_and_save_next_pigeon_hole()
+        self._create_and_save_next_pigeonhole()
 
     @property
     def last_address(self) -> bytes:
-        return self._pigeon_holes[next(reversed(self._pigeon_holes))].address
+        return self._pigeonholes[next(reversed(self._pigeonholes))].address
 
     @property
     def last_message(self) -> str:
         return self._messages[-1]
 
     def is_receiving(self, address: bytes) -> bool:
-        return address in self._pigeon_holes
+        return address in self._pigeonholes
 
-    def pigeon_hole_for_address(self, address: bytes) -> PigeonHole:
-        return self._pigeon_holes.get(address)
+    def pigeonhole_for_address(self, address: bytes) -> PigeonHole:
+        return self._pigeonholes.get(address)
 
-    def _create_and_save_next_pigeon_hole(self) -> PigeonHole:
-        ph = self._create_pigeon_hole()
-        self._pigeon_holes[ph.address] = ph
+    def _create_and_save_next_pigeonhole(self) -> PigeonHole:
+        ph = self._create_pigeonhole()
+        self._pigeonholes[ph.address] = ph
         return ph
 
-    def _create_recipient_pigeon_hole(self):
-        return self._create_pigeon_hole(for_sending=True)
+    def _create_recipient_pigeonhole(self):
+        return self._create_pigeonhole(for_sending=True)
 
-    def _create_pigeon_hole(self, for_sending=False) -> PigeonHole:
+    def _create_pigeonhole(self, for_sending=False) -> PigeonHole:
         nb_messages = self.nb_sent_messages if for_sending else self.nb_recv_messages
         return PigeonHole(self.dh_key, self.public_key, nb_messages) if self.querier \
             else PigeonHole(self.dh_key, self.other_public_key, nb_messages)
