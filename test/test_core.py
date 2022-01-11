@@ -1,15 +1,15 @@
 from unittest import TestCase
 
 from dsnet.core import PigeonHole, Conversation
-from dsnet.crypto import gen_key_pair, compute_dhke
+from dsnet.crypto import gen_key_pair
 
 
 class TestPigeonHole(TestCase):
     def setUp(self) -> None:
         self.bob_keys = gen_key_pair()
         self.query_keys = gen_key_pair()
-        self.ph_alice = PigeonHole(self.query_keys.private, self.bob_keys.public, self.query_keys.public)
-        self.ph_bob = PigeonHole(self.bob_keys.private, self.query_keys.public, self.query_keys.public)
+        self.ph_alice = PigeonHole(self.bob_keys.public, self.query_keys.private, self.query_keys.public)
+        self.ph_bob = PigeonHole(self.query_keys.public, self.bob_keys.private)
 
     def test_alice_sends_query_to_bob(self):
         encrypted_message = self.ph_alice.encrypt('message')

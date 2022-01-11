@@ -1,19 +1,18 @@
 from collections import OrderedDict
 from typing import List
 
-from dsnet.crypto import compute_address, compute_sym_key, pad_message, encrypt, decrypt, unpad_message, get_public_key, \
-    compute_dhke
-
+from dsnet.crypto import compute_address, compute_sym_key, pad_message, encrypt, decrypt, unpad_message, \
+    get_public_key, compute_dhke
 
 # Length of exchanged messages in bytes.
 PH_MESSAGE_LENGTH: int = 2048
 
 
 class PigeonHole:
-    def __init__(self, private_key_for_dh: bytes, public_key_for_dh: bytes, sender_public_key: bytes, message_number: int = 0) -> None:
-        self.dh_key = compute_dhke(private_key_for_dh, public_key_for_dh)
-        self.address = compute_address(self.dh_key, sender_public_key, message_number)
-        self.sym_key = compute_sym_key(self.dh_key, sender_public_key, message_number)
+    def __init__(self, public_key_for_dh: bytes, private_key_for_dh: bytes = None, sender_public_key: bytes = None,
+                 message_number: int = 0, dh_key: bytes = None) -> None:
+        self.dh_key = compute_dhke(private_key_for_dh, public_key_for_dh) if dh_key is None else dh_key
+        self.public_key = sender_public_key if sender_public_key is not None else public_key_for_dh
         self.message_number = message_number
 
     def encrypt(self, message: str) -> bytes:
@@ -27,6 +26,14 @@ class PigeonHole:
     def decrypt(self, ciphered_payload: bytes) -> str:
         padded_payload = decrypt(ciphered_payload, self.sym_key)
         return unpad_message(padded_payload).decode('utf-8')
+
+    @property
+    def address(self):
+        return compute_address(self.dh_key, self.public_key, self.message_number)
+
+    @property
+    def sym_key(self):
+        return compute_sym_key(self.dh_key, self.public_key, self.message_number)
 
     def __repr__(self):
         return 'PigeonHole(address: %s nb: %s)' % (self.address.hex(), self.message_number)
@@ -110,8 +117,8 @@ class Conversation:
 
     def _create_pigeonhole(self, for_sending=False) -> PigeonHole:
         nb_messages = self.nb_sent_messages if for_sending else self.nb_recv_messages
-        sender_public_key = self.public_key if self.querier else self.other_public_key
-        return PigeonHole(self.private_key, self.other_public_key, sender_public_key, nb_messages)
+        sender_public_key = self.public_key if self.querier else None
+        return PigeonHole(self.other_public_key, self.private_key, sender_public_key, nb_messages)
 
     def __str__(self) -> str:
         return self.__repr__()
@@ -119,4 +126,3 @@ class Conversation:
     def __repr__(self) -> str:
         return 'Conversation(public_key: %s sent: %d recv: %d)' % \
                (self.public_key.hex(), self.nb_sent_messages, self.nb_recv_messages)
-
