@@ -45,6 +45,9 @@ class Query:
         self.public_key = public_key
         self.payload = payload
 
+    def to_bytes(self):
+        return self.public_key + self.payload.encode("utf-8")
+
 
 class Message:
     def __init__(self, address: bytes, payload: bytes, from_key: bytes, timestamp: datetime = None):

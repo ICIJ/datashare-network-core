@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from dsnet.core import PigeonHole, Conversation
+from dsnet.core import PigeonHole, Conversation, Query
 from dsnet.crypto import gen_key_pair
 
 
@@ -82,3 +82,9 @@ class TestConversation(TestCase):
 
         message = alice_conversation.create_response('message')
         self.assertTrue(bob_conversation.is_receiving(message.address))
+
+
+class TestSerialization(TestCase):
+    def test_serialize_query(self):
+        keys = gen_key_pair()
+        self.assertEqual(keys.public + 'query'.encode(), Query(keys.public, 'query').to_bytes())
