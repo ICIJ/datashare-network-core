@@ -87,4 +87,4 @@ class TestConversation(TestCase):
 class TestSerialization(TestCase):
     def test_serialize_query(self):
         keys = gen_key_pair()
-        self.assertEqual(keys.public + 'query'.encode(), Query(keys.public, 'query').to_bytes())
+        self.assertEqual(b'\x01' + keys.public + 'query'.encode(), Query(keys.public, 'query').to_bytes())

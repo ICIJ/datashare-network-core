@@ -46,7 +46,7 @@ class Query:
         self.payload = payload
 
     def to_bytes(self):
-        return self.public_key + self.payload.encode("utf-8")
+        return b'\x01' + self.public_key + self.payload.encode("utf-8")
 
 
 class Message:
