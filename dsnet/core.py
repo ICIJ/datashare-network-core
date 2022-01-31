@@ -1,9 +1,10 @@
 from collections import OrderedDict
 from datetime import datetime
+from enum import Enum, IntEnum
 from typing import List
 
 from dsnet.crypto import compute_address, compute_sym_key, pad_message, encrypt, decrypt, unpad_message, \
-    get_public_key, compute_dhke
+    get_public_key, compute_dhke, ENCRYPTION_KEY_LENGTH
 
 # Length of exchanged messages in bytes.
 PH_MESSAGE_LENGTH: int = 2048
@@ -16,12 +17,12 @@ class PigeonHole:
         self.public_key = sender_public_key if sender_public_key is not None else public_key_for_dh
         self.message_number = message_number
 
-    def encrypt(self, message: str) -> bytes:
+    def encrypt(self, message: bytes) -> bytes:
         """
         :returns the encrypted message
         :rtype: bytearray
         """
-        message_padded = pad_message(message.encode('utf-8'), PH_MESSAGE_LENGTH)
+        message_padded = pad_message(message, PH_MESSAGE_LENGTH)
         return encrypt(message_padded, self.sym_key)
 
     def decrypt(self, ciphered_payload: bytes) -> str:
@@ -40,13 +41,25 @@ class PigeonHole:
         return 'PigeonHole(address: %s nb: %s)' % (self.address.hex(), self.message_number)
 
 
+class MessageType(IntEnum):
+    QUERY = 1
+    RESPONSE = 2
+    MESSAGE = 3
+
+
 class Query:
-    def __init__(self, public_key: bytes, payload: str):
+    def __init__(self, public_key: bytes, payload: bytes):
         self.public_key = public_key
         self.payload = payload
 
     def to_bytes(self):
-        return b'\x01' + self.public_key + self.payload.encode("utf-8")
+        return MessageType.QUERY.to_bytes(1, byteorder='big') + self.public_key + self.payload
+
+    @classmethod
+    def from_bytes(cls, payload: bytes):
+        if payload[0] != MessageType.QUERY:
+            raise ValueError(f'{payload[0]} is not a query metadata code')
+        return cls(payload[1:ENCRYPTION_KEY_LENGTH+1], payload[ENCRYPTION_KEY_LENGTH+1:])
 
 
 class Message:
@@ -58,7 +71,7 @@ class Message:
 
 
 class Conversation:
-    def __init__(self, private_key: bytes, other_public_key: bytes, query: str, querier=False,
+    def __init__(self, private_key: bytes, other_public_key: bytes, query: bytes = None, querier=False,
                  pigeonholes: List[PigeonHole] = None, messages: List[Message] = None) -> None:
         self.private_key = private_key
         self.public_key = get_public_key(private_key)
@@ -80,9 +93,9 @@ class Conversation:
         """
         Returns a new query object
         """
-        return Query(self.public_key, self.query)
+        return Query(self.public_key, self.query) if self.query else None
 
-    def create_response(self, payload: str) -> Message:
+    def create_response(self, payload: bytes) -> Message:
         """
         Create a response to query
         """
