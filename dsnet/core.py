@@ -47,6 +47,7 @@ class MessageType(IntEnum):
     QUERY = 1
     RESPONSE = 2
     MESSAGE = 3
+    NOTIFICATION = 4
 
 
 class Query:
@@ -70,6 +71,26 @@ class Message:
         self.from_key = from_key
         self.payload = payload
         self.timestamp = timestamp if timestamp is not None else datetime.now()
+
+
+class PigeonHoleNotification:
+    ADR_LENGTH = 3
+
+    def __init__(self, adr_hex: str):
+        self.adr_hex = adr_hex
+
+    def to_bytes(self) -> bytes:
+        return MessageType.NOTIFICATION.to_bytes(1, 'big') + bytes.fromhex(self.adr_hex)
+
+    @classmethod
+    def from_bytes(cls, payload: bytes):
+        if payload[0] != MessageType.NOTIFICATION:
+            raise ValueError(f'{payload[0]} is not a notification metadata code')
+        return cls(payload[1:].hex())
+
+    @classmethod
+    def from_address(cls, address: bytes):
+        return cls(address[0:PigeonHoleNotification.ADR_LENGTH].hex())
 
 
 class Conversation:

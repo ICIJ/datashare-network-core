@@ -1,6 +1,6 @@
 from unittest import TestCase
 
-from dsnet.core import PigeonHole, Conversation, Query
+from dsnet.core import PigeonHole, Conversation, Query, PigeonHoleNotification
 from dsnet.crypto import gen_key_pair
 
 
@@ -98,3 +98,17 @@ class TestSerialization(TestCase):
     def test_deserialize_bad_query(self):
         with self.assertRaises(ValueError):
             Query.from_bytes(b'\x02' + b'not a query payload')
+
+    def test_serialize_ph_notification(self):
+        address = b'deadbeef01234567deadbeef01234567'
+        ph_notif = PigeonHoleNotification.from_address(address)
+        assert ph_notif.to_bytes() == b'\x04dea'
+
+    def test_deserialize_ph_notification(self):
+        payload = bytes.fromhex("04deadbe")
+        ph_notif = PigeonHoleNotification.from_bytes(payload)
+        assert 'deadbe' == ph_notif.adr_hex
+
+    def test_deserialize_bad_notification_code(self):
+        with self.assertRaises(ValueError):
+            PigeonHoleNotification.from_bytes(b'\x02' + b'not a notification payload')
