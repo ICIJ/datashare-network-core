@@ -27,7 +27,7 @@ class TestConversation(TestCase):
         self.conversation_keys = gen_key_pair()
 
     def test_alice_sends_query_conversation(self):
-        conversation = Conversation(self.conversation_keys.private, self.bob_keys.public, query=b'query', querier=True)
+        conversation = Conversation.create_from_querier(self.conversation_keys.private, self.bob_keys.public, query=b'query')
 
         query = conversation.get_query()
 
@@ -39,8 +39,8 @@ class TestConversation(TestCase):
         self.assertIsNotNone(conversation.last_address)
 
     def test_bob_receives_query_conversation(self):
-        alice_conversation = Conversation(self.conversation_keys.private, self.bob_keys.public, query=b'query', querier=True)
-        conversation = Conversation(self.bob_keys.private, self.conversation_keys.public, query=b'query')
+        alice_conversation = Conversation.create_from_querier(self.conversation_keys.private, self.bob_keys.public, query=b'query')
+        conversation = Conversation.create_from_recipient(self.bob_keys.private, self.conversation_keys.public)
 
         response = conversation.create_response(b'bob query response')
 
@@ -50,8 +50,8 @@ class TestConversation(TestCase):
         self.assertIsNotNone(response.payload)
 
     def test_alice_decrypt_message_from_bob(self):
-        alice_conversation = Conversation(self.conversation_keys.private, self.bob_keys.public, query=b'query', querier=True)
-        bob_conversation = Conversation(self.bob_keys.private, self.conversation_keys.public, query=b'query')
+        alice_conversation = Conversation.create_from_querier(self.conversation_keys.private, self.bob_keys.public, query=b'query')
+        bob_conversation = Conversation.create_from_recipient(self.bob_keys.private, self.conversation_keys.public)
         response = bob_conversation.create_response(b'response')
 
         alice_conversation.add_message(response)
@@ -61,8 +61,8 @@ class TestConversation(TestCase):
         self.assertEqual(b'response', alice_conversation.last_message.payload)
 
     def test_bob_decrypt_message_from_alice(self):
-        alice_conversation = Conversation(self.conversation_keys.private, self.bob_keys.public, query=b'query', querier=True)
-        bob_conversation = Conversation(self.bob_keys.private, self.conversation_keys.public, query=b'query')
+        alice_conversation = Conversation.create_from_querier(self.conversation_keys.private, self.bob_keys.public, query=b'query')
+        bob_conversation = Conversation.create_from_recipient(self.bob_keys.private, self.conversation_keys.public)
         message = bob_conversation.create_response(b'response from Bob')
         alice_conversation.add_message(message)
 
@@ -74,8 +74,8 @@ class TestConversation(TestCase):
         self.assertEqual(b'message from Alice', bob_conversation.last_message.payload)
 
     def test_is_receiving_address(self):
-        alice_conversation = Conversation(self.conversation_keys.private, self.bob_keys.public, query=b'query', querier=True)
-        bob_conversation = Conversation(self.bob_keys.private, self.conversation_keys.public, query=b'query')
+        alice_conversation = Conversation.create_from_querier(self.conversation_keys.private, self.bob_keys.public, query=b'query')
+        bob_conversation = Conversation.create_from_recipient(self.bob_keys.private, self.conversation_keys.public)
 
         response = bob_conversation.create_response(b'response')
         self.assertTrue(alice_conversation.is_receiving(response.address))

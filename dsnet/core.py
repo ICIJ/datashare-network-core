@@ -1,7 +1,9 @@
+from __future__ import annotations
+
 from collections import OrderedDict
 from datetime import datetime
 from enum import Enum, IntEnum
-from typing import List
+from typing import List, Optional
 
 from dsnet.crypto import compute_address, compute_sym_key, pad_message, encrypt, decrypt, unpad_message, \
     get_public_key, compute_dhke, ENCRYPTION_KEY_LENGTH
@@ -71,23 +73,80 @@ class Message:
 
 
 class Conversation:
-    def __init__(self, private_key: bytes, other_public_key: bytes, query: bytes = None, querier=False,
-                 pigeonholes: List[PigeonHole] = None, messages: List[Message] = None) -> None:
+    def __init__(self,
+            private_key: bytes,
+            other_public_key: bytes,
+            nb_sent_messages: int,
+            nb_recv_messages: int,
+            querier: bool = False,
+            created_at: Optional[datetime] = None,
+            query: Optional[bytes] = None,
+            pigeonholes: List[PigeonHole] = None,
+            messages: List[Message] = None
+        ) -> None:
         self.private_key = private_key
         self.public_key = get_public_key(private_key)
         self.other_public_key = other_public_key
         self.query = query
         self.querier = querier
-        self.created_at = datetime.now()
-        self.nb_sent_messages = 1 if querier else 0
-        self.nb_recv_messages = 0 if querier else 1
+        self.created_at = datetime.now() if created_at is None else created_at
+        self.nb_sent_messages = nb_sent_messages
+        self.nb_recv_messages = nb_recv_messages
         self._messages: List[Message] = list() if messages is None else messages
         self._pigeonholes: OrderedDict[bytes, PigeonHole] = OrderedDict()
-        if querier and messages is None:
-            self._create_and_save_next_pigeonhole()
+
         if pigeonholes is not None:
             for ph in pigeonholes:
                 self._pigeonholes[ph.address] = ph
+
+
+    @classmethod
+    def create_from_querier(
+            cls,
+            private_key: bytes,
+            other_public_key: bytes,
+            query: bytes,
+            pigeonholes: List[PigeonHole] = None,
+            messages: List[Message] = None
+        ) -> Conversation:
+
+        conversation = cls(
+            private_key,
+            other_public_key,
+            nb_sent_messages=1,
+            nb_recv_messages=0,
+            querier=True,
+            query=query,
+            pigeonholes=pigeonholes,
+            messages=messages
+        )
+
+        if messages is None:
+            conversation._create_and_save_next_pigeonhole()
+
+        return conversation
+
+
+    @classmethod
+    def create_from_recipient(
+            cls,
+            private_key: bytes,
+            other_public_key: bytes,
+            pigeonholes: List[PigeonHole] = None,
+            messages: List[Message] = None
+        ) -> Conversation:
+
+        return cls(
+            private_key,
+            other_public_key,
+            nb_sent_messages=0,
+            nb_recv_messages=1,
+            querier=False,
+            query=None,
+            pigeonholes=pigeonholes,
+            messages=messages
+        )
+
 
     def get_query(self) -> Query:
         """
