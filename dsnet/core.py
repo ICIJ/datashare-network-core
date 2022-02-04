@@ -62,7 +62,7 @@ class Query:
     def from_bytes(cls, payload: bytes):
         if payload[0] != MessageType.QUERY:
             raise ValueError(f'{payload[0]} is not a query metadata code')
-        return cls(payload[1:ENCRYPTION_KEY_LENGTH+1], payload[ENCRYPTION_KEY_LENGTH+1:])
+        return cls(payload[1:ENCRYPTION_KEY_LENGTH + 1], payload[ENCRYPTION_KEY_LENGTH + 1:])
 
 
 class Message:
@@ -95,16 +95,16 @@ class PigeonHoleNotification:
 
 class Conversation:
     def __init__(self,
-            private_key: bytes,
-            other_public_key: bytes,
-            nb_sent_messages: int,
-            nb_recv_messages: int,
-            querier: bool = False,
-            created_at: Optional[datetime] = None,
-            query: Optional[bytes] = None,
-            pigeonholes: List[PigeonHole] = None,
-            messages: List[Message] = None
-        ) -> None:
+                 private_key: bytes,
+                 other_public_key: bytes,
+                 nb_sent_messages: int,
+                 nb_recv_messages: int,
+                 querier: bool = False,
+                 created_at: Optional[datetime] = None,
+                 query: Optional[bytes] = None,
+                 pigeonholes: List[PigeonHole] = None,
+                 messages: List[Message] = None
+                 ) -> None:
         self.private_key = private_key
         self.public_key = get_public_key(private_key)
         self.other_public_key = other_public_key
@@ -120,7 +120,6 @@ class Conversation:
             for ph in pigeonholes:
                 self._pigeonholes[ph.address] = ph
 
-
     @classmethod
     def create_from_querier(
             cls,
@@ -129,7 +128,7 @@ class Conversation:
             query: bytes,
             pigeonholes: List[PigeonHole] = None,
             messages: List[Message] = None
-        ) -> Conversation:
+    ) -> Conversation:
 
         conversation = cls(
             private_key,
@@ -147,7 +146,6 @@ class Conversation:
 
         return conversation
 
-
     @classmethod
     def create_from_recipient(
             cls,
@@ -155,7 +153,7 @@ class Conversation:
             other_public_key: bytes,
             pigeonholes: List[PigeonHole] = None,
             messages: List[Message] = None
-        ) -> Conversation:
+    ) -> Conversation:
 
         return cls(
             private_key,
@@ -167,7 +165,6 @@ class Conversation:
             pigeonholes=pigeonholes,
             messages=messages
         )
-
 
     def get_query(self) -> Query:
         """
