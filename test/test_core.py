@@ -1,7 +1,8 @@
 from unittest import TestCase
 
-from dsnet.core import PigeonHole, Conversation, Query, PigeonHoleNotification
+from dsnet.core import PigeonHole, Conversation
 from dsnet.crypto import gen_key_pair
+from dsnet.message import Query, PigeonHoleNotification
 
 
 class TestPigeonHole(TestCase):

@@ -2,11 +2,12 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from datetime import datetime
-from enum import Enum, IntEnum
 from typing import List, Optional
 
 from dsnet.crypto import compute_address, compute_sym_key, pad_message, encrypt, decrypt, unpad_message, \
-    get_public_key, compute_dhke, ENCRYPTION_KEY_LENGTH
+    get_public_key, compute_dhke
+
+from dsnet.message import PigeonHoleMessage, Query
 
 # Length of exchanged messages in bytes.
 PH_MESSAGE_LENGTH: int = 2048
@@ -43,56 +44,6 @@ class PigeonHole:
         return 'PigeonHole(address: %s nb: %s)' % (self.address.hex(), self.message_number)
 
 
-class MessageType(IntEnum):
-    QUERY = 1
-    RESPONSE = 2
-    MESSAGE = 3
-    NOTIFICATION = 4
-
-
-class Query:
-    def __init__(self, public_key: bytes, payload: bytes):
-        self.public_key = public_key
-        self.payload = payload
-
-    def to_bytes(self):
-        return MessageType.QUERY.to_bytes(1, byteorder='big') + self.public_key + self.payload
-
-    @classmethod
-    def from_bytes(cls, payload: bytes):
-        if payload[0] != MessageType.QUERY:
-            raise ValueError(f'{payload[0]} is not a query metadata code')
-        return cls(payload[1:ENCRYPTION_KEY_LENGTH + 1], payload[ENCRYPTION_KEY_LENGTH + 1:])
-
-
-class Message:
-    def __init__(self, address: bytes, payload: bytes, from_key: bytes, timestamp: datetime = None):
-        self.address = address
-        self.from_key = from_key
-        self.payload = payload
-        self.timestamp = timestamp if timestamp is not None else datetime.now()
-
-
-class PigeonHoleNotification:
-    ADR_LENGTH = 3
-
-    def __init__(self, adr_hex: str):
-        self.adr_hex = adr_hex
-
-    def to_bytes(self) -> bytes:
-        return MessageType.NOTIFICATION.to_bytes(1, 'big') + bytes.fromhex(self.adr_hex)
-
-    @classmethod
-    def from_bytes(cls, payload: bytes):
-        if payload[0] != MessageType.NOTIFICATION:
-            raise ValueError(f'{payload[0]} is not a notification metadata code')
-        return cls(payload[1:].hex())
-
-    @classmethod
-    def from_address(cls, address: bytes):
-        return cls(address[0:PigeonHoleNotification.ADR_LENGTH].hex())
-
-
 class Conversation:
     def __init__(self,
                  private_key: bytes,
@@ -103,7 +54,7 @@ class Conversation:
                  created_at: Optional[datetime] = None,
                  query: Optional[bytes] = None,
                  pigeonholes: List[PigeonHole] = None,
-                 messages: List[Message] = None
+                 messages: List[PigeonHoleMessage] = None
                  ) -> None:
         self.private_key = private_key
         self.public_key = get_public_key(private_key)
@@ -113,7 +64,7 @@ class Conversation:
         self.created_at = datetime.now() if created_at is None else created_at
         self.nb_sent_messages = nb_sent_messages
         self.nb_recv_messages = nb_recv_messages
-        self._messages: List[Message] = list() if messages is None else messages
+        self._messages: List[PigeonHoleMessage] = list() if messages is None else messages
         self._pigeonholes: OrderedDict[bytes, PigeonHole] = OrderedDict()
 
         if pigeonholes is not None:
@@ -127,7 +78,7 @@ class Conversation:
             other_public_key: bytes,
             query: bytes,
             pigeonholes: List[PigeonHole] = None,
-            messages: List[Message] = None
+            messages: List[PigeonHoleMessage] = None
     ) -> Conversation:
 
         conversation = cls(
@@ -152,7 +103,7 @@ class Conversation:
             private_key: bytes,
             other_public_key: bytes,
             pigeonholes: List[PigeonHole] = None,
-            messages: List[Message] = None
+            messages: List[PigeonHoleMessage] = None
     ) -> Conversation:
 
         return cls(
@@ -172,23 +123,23 @@ class Conversation:
         """
         return Query(self.public_key, self.query) if self.query else None
 
-    def create_response(self, payload: bytes) -> Message:
+    def create_response(self, payload: bytes) -> PigeonHoleMessage:
         """
         Create a response to query
         """
         ph = self._create_recipient_pigeonhole()
         self.nb_sent_messages += 1
         self._create_and_save_next_pigeonhole()
-        return Message(ph.address, ph.encrypt(payload), self.public_key)
+        return PigeonHoleMessage(ph.address, ph.encrypt(payload), self.public_key)
 
-    def add_message(self, message: Message) -> None:
+    def add_message(self, message: PigeonHoleMessage) -> None:
         """
         Add a message to the conversation
         """
         self.nb_recv_messages += 1
         ph = self._pigeonholes[message.address]
         cleartext = ph.decrypt(message.payload)
-        self._messages.append(Message(message.address, cleartext.encode('utf-8'), from_key=message.from_key))
+        self._messages.append(PigeonHoleMessage(message.address, cleartext.encode('utf-8'), from_key=message.from_key))
         self._create_and_save_next_pigeonhole()
 
     @property
@@ -196,7 +147,7 @@ class Conversation:
         return self._pigeonholes[next(reversed(self._pigeonholes))].address
 
     @property
-    def last_message(self) -> Message:
+    def last_message(self) -> PigeonHoleMessage:
         return self._messages[-1]
 
     def is_receiving(self, address: bytes) -> bool:
