@@ -52,10 +52,10 @@ class Query(Message):
         self.payload = payload
 
     def type(self) -> MessageType:
-        return MessageType.NOTIFICATION
+        return MessageType.QUERY
 
     def to_bytes(self):
-        return MessageType.QUERY.to_bytes(1, byteorder='big') + self.public_key + self.payload
+        return self.type().to_bytes(1, byteorder='big') + self.public_key + self.payload
 
     @classmethod
     def from_bytes(cls, payload: bytes):
@@ -92,7 +92,7 @@ class PigeonHoleNotification(Message):
         return MessageType.NOTIFICATION
 
     def to_bytes(self) -> bytes:
-        return MessageType.NOTIFICATION.to_bytes(1, 'big') + bytes.fromhex(self.adr_hex)
+        return self.type().to_bytes(1, 'big') + bytes.fromhex(self.adr_hex)
 
     @classmethod
     def from_bytes(cls, payload: bytes):
