@@ -53,7 +53,8 @@ class Conversation:
                  created_at: Optional[datetime] = None,
                  query: Optional[bytes] = None,
                  pigeonholes: List[PigeonHole] = None,
-                 messages: List[PigeonHoleMessage] = None
+                 messages: List[PigeonHoleMessage] = None,
+                 id: Optional[int] = None
                  ) -> None:
         self.private_key = private_key
         self.public_key = get_public_key(private_key)
@@ -63,6 +64,7 @@ class Conversation:
         self.created_at = datetime.now() if created_at is None else created_at
         self._messages: List[PigeonHoleMessage] = list() if messages is None else messages
         self._pigeonholes: OrderedDict[bytes, PigeonHole] = OrderedDict()
+        self.id = id
 
         if pigeonholes is not None:
             for ph in pigeonholes:
