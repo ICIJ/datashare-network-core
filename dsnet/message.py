@@ -66,13 +66,12 @@ class Query(Message):
 
 
 class PigeonHoleMessage(Message):
-    def __init__(self, address: Optional[bytes], payload: Optional[bytes], from_key: Optional[bytes] = None, timestamp: Optional[datetime] = None, conversation_id: Optional[int] = None, message_number: Optional[int] = None):
+    def __init__(self, address: Optional[bytes], payload: Optional[bytes], from_key: Optional[bytes] = None, timestamp: Optional[datetime] = None, conversation_id: Optional[int] = None):
         self.address = address
         self.payload = payload
         self.from_key = from_key
         self.timestamp = timestamp if timestamp is not None else datetime.now()
         self.conversation_id = conversation_id
-        self.message_number = message_number
 
     def type(self) -> MessageType:
         return MessageType.MESSAGE
