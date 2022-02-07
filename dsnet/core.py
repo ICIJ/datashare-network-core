@@ -18,6 +18,7 @@ class PigeonHole:
                  message_number: int = 0, dh_key: bytes = None, conversation_id: Optional[int] = None) -> None:
         self.dh_key = compute_dhke(private_key_for_dh, public_key_for_dh) if dh_key is None else dh_key
         self.public_key = sender_public_key if sender_public_key is not None else public_key_for_dh
+        self.peer_key = public_key_for_dh if sender_public_key is not None else None
         self.message_number = message_number
         self.conversation_id = conversation_id
 
