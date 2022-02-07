@@ -15,10 +15,11 @@ PH_MESSAGE_LENGTH: int = 2048
 
 class PigeonHole:
     def __init__(self, public_key_for_dh: bytes, private_key_for_dh: bytes = None, sender_public_key: bytes = None,
-                 message_number: int = 0, dh_key: bytes = None) -> None:
+                 message_number: int = 0, dh_key: bytes = None, conversation_id: Optional[int] = None) -> None:
         self.dh_key = compute_dhke(private_key_for_dh, public_key_for_dh) if dh_key is None else dh_key
         self.public_key = sender_public_key if sender_public_key is not None else public_key_for_dh
         self.message_number = message_number
+        self.conversation_id = conversation_id
 
     def encrypt(self, message: bytes) -> bytes:
         """
