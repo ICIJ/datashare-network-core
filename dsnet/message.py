@@ -66,7 +66,7 @@ class Query(Message):
 
 
 class PigeonHoleMessage(Message):
-    def __init__(self, address: bytes, payload: bytes, from_key: Optional[bytes] = None, timestamp: Optional[datetime] = None):
+    def __init__(self, address: Optional[bytes], payload: Optional[bytes], from_key: Optional[bytes] = None, timestamp: Optional[datetime] = None):
         self.address = address
         self.payload = payload
         self.from_key = from_key

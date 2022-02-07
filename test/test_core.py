@@ -44,7 +44,6 @@ class TestConversation(TestCase):
         conversation = Conversation.create_from_recipient(self.bob_keys.private, self.conversation_keys.public)
 
         response = conversation.create_response(b'bob query response')
-
         self.assertEqual(conversation.nb_recv_messages, 1)
         self.assertEqual(conversation.nb_sent_messages, 1)
         self.assertEqual(alice_conversation.last_address, response.address)
@@ -83,6 +82,28 @@ class TestConversation(TestCase):
 
         message = alice_conversation.create_response(b'message')
         self.assertTrue(bob_conversation.is_receiving(message.address))
+
+    def test_bob_and_alice_have_a_conversation(self):
+        alice_conversation = Conversation.create_from_querier(self.conversation_keys.private, self.bob_keys.public, query=b'query')
+        bob_conversation = Conversation.create_from_recipient(self.bob_keys.private, self.conversation_keys.public)
+
+        response = bob_conversation.create_response(b'response')
+        self.assertTrue(alice_conversation.is_receiving(response.address))
+        alice_conversation.add_message(response)
+
+        message = alice_conversation.create_response(b'message1')
+        self.assertTrue(bob_conversation.is_receiving(message.address))
+        bob_conversation.add_message(message)
+        message = alice_conversation.create_response(b'message2')
+        self.assertTrue(bob_conversation.is_receiving(message.address))
+        bob_conversation.add_message(message)
+
+        message = bob_conversation.create_response(b'bob message1')
+        self.assertTrue(alice_conversation.is_receiving(message.address))
+        alice_conversation.add_message(message)
+        message = bob_conversation.create_response(b'bob message2')
+        self.assertTrue(alice_conversation.is_receiving(message.address))
+        alice_conversation.add_message(message)
 
 
 class TestSerialization(TestCase):

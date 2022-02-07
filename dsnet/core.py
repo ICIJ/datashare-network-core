@@ -48,8 +48,6 @@ class Conversation:
     def __init__(self,
                  private_key: bytes,
                  other_public_key: bytes,
-                 nb_sent_messages: int,
-                 nb_recv_messages: int,
                  querier: bool = False,
                  created_at: Optional[datetime] = None,
                  query: Optional[bytes] = None,
@@ -62,8 +60,6 @@ class Conversation:
         self.query = query
         self.querier = querier
         self.created_at = datetime.now() if created_at is None else created_at
-        self.nb_sent_messages = nb_sent_messages
-        self.nb_recv_messages = nb_recv_messages
         self._messages: List[PigeonHoleMessage] = list() if messages is None else messages
         self._pigeonholes: OrderedDict[bytes, PigeonHole] = OrderedDict()
 
@@ -84,8 +80,6 @@ class Conversation:
         conversation = cls(
             private_key,
             other_public_key,
-            nb_sent_messages=1,
-            nb_recv_messages=0,
             querier=True,
             query=query,
             pigeonholes=pigeonholes,
@@ -93,6 +87,7 @@ class Conversation:
         )
 
         if messages is None:
+            conversation._messages.append(PigeonHoleMessage(None, query, from_key=conversation.public_key))
             conversation._create_and_save_next_pigeonhole()
 
         return conversation
@@ -106,16 +101,18 @@ class Conversation:
             messages: List[PigeonHoleMessage] = None
     ) -> Conversation:
 
-        return cls(
+        conversation = cls(
             private_key,
             other_public_key,
-            nb_sent_messages=0,
-            nb_recv_messages=1,
             querier=False,
             query=None,
             pigeonholes=pigeonholes,
             messages=messages
         )
+
+        if messages is None:
+            conversation._messages.append(PigeonHoleMessage(None, None, from_key=conversation.other_public_key))
+        return conversation
 
     def get_query(self) -> Query:
         """
@@ -127,20 +124,28 @@ class Conversation:
         """
         Create a response to query
         """
-        ph = self._create_recipient_pigeonhole()
-        self.nb_sent_messages += 1
+        tmp_recipient_ph = self._create_recipient_pigeonhole()
+        message = PigeonHoleMessage(tmp_recipient_ph.address, tmp_recipient_ph.encrypt(payload), from_key=self.public_key)
+        self._messages.append(PigeonHoleMessage(message.address, payload, from_key=self.public_key))
         self._create_and_save_next_pigeonhole()
-        return PigeonHoleMessage(ph.address, ph.encrypt(payload), from_key=self.public_key)
+        return message
 
     def add_message(self, message: PigeonHoleMessage) -> None:
         """
         Add a message to the conversation
         """
-        self.nb_recv_messages += 1
         ph = self._pigeonholes[message.address]
         cleartext = ph.decrypt(message.payload)
-        self._messages.append(PigeonHoleMessage(message.address, cleartext, from_key=ph.public_key))
+        self._messages.append(PigeonHoleMessage(message.address, cleartext, from_key=message.from_key))
         self._create_and_save_next_pigeonhole()
+
+    @property
+    def nb_sent_messages(self) -> int:
+        return sum(1 for _ in filter(lambda m: m.from_key == self.public_key, self._messages))
+
+    @property
+    def nb_recv_messages(self) -> int:
+        return sum(1 for _ in filter(lambda m: m.from_key != self.public_key, self._messages))
 
     @property
     def last_address(self) -> bytes:
