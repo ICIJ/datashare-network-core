@@ -3,8 +3,9 @@ from __future__ import annotations
 import abc
 from datetime import datetime
 from enum import IntEnum
+from typing import Optional
 
-from dsnet.crypto import ENCRYPTION_KEY_LENGTH
+from dsnet.crypto import ENCRYPTION_KEY_LENGTH, ADDRESS_LENGTH
 
 
 class Message(metaclass=abc.ABCMeta):
@@ -65,21 +66,23 @@ class Query(Message):
 
 
 class PigeonHoleMessage(Message):
-    def __init__(self, address: bytes, payload: bytes, from_key: bytes, timestamp: datetime = None):
+    def __init__(self, address: bytes, payload: bytes, from_key: Optional[bytes] = None, timestamp: Optional[datetime] = None):
         self.address = address
-        self.from_key = from_key
         self.payload = payload
+        self.from_key = from_key
         self.timestamp = timestamp if timestamp is not None else datetime.now()
 
     def type(self) -> MessageType:
         return MessageType.MESSAGE
 
     def to_bytes(self) -> bytes:
-        pass
+        return self.type().to_bytes(1, byteorder='big') + self.address + self.payload
 
     @classmethod
-    def from_bytes(cls, payload) -> Message:
-        pass
+    def from_bytes(cls, payload) -> PigeonHoleMessage:
+        if payload[0] != MessageType.MESSAGE:
+            raise ValueError(f'{payload[0]} is not a message metadata code')
+        return cls(payload[1:ADDRESS_LENGTH + 1], payload[ADDRESS_LENGTH + 1:])
 
 
 class PigeonHoleNotification(Message):

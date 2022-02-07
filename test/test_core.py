@@ -2,7 +2,7 @@ from unittest import TestCase
 
 from dsnet.core import PigeonHole, Conversation
 from dsnet.crypto import gen_key_pair
-from dsnet.message import Query, PigeonHoleNotification
+from dsnet.message import Query, PigeonHoleNotification, PigeonHoleMessage
 
 
 class TestPigeonHole(TestCase):
@@ -14,11 +14,11 @@ class TestPigeonHole(TestCase):
 
     def test_alice_sends_query_to_bob(self):
         encrypted_message = self.ph_alice.encrypt(b'message')
-        self.assertEqual('message', self.ph_bob.decrypt(encrypted_message))
+        self.assertEqual(b'message', self.ph_bob.decrypt(encrypted_message))
 
     def test_bob_responds_to_alice(self):
         encrypted_response = self.ph_bob.encrypt(b'response')
-        self.assertEqual('response', self.ph_alice.decrypt(encrypted_response))
+        self.assertEqual(b'response', self.ph_alice.decrypt(encrypted_response))
 
 
 class TestConversation(TestCase):
@@ -113,3 +113,15 @@ class TestSerialization(TestCase):
     def test_deserialize_bad_notification_code(self):
         with self.assertRaises(ValueError):
             PigeonHoleNotification.from_bytes(b'\x02' + b'not a notification payload')
+
+    def test_serialize_ph_message(self):
+        address = b'deadbeef01234567deadbeef01234567'
+        payload = b'encrypted'
+        ph_message = PigeonHoleMessage(address, payload)
+        assert ph_message.to_bytes() == b'\x03' + address + payload
+
+    def test_deserialize_ph_message(self):
+        payload = b'\x03deadbeef01234567deadbeef01234567encrypted'
+        ph_message = PigeonHoleMessage.from_bytes(payload)
+        assert ph_message.address == b'deadbeef01234567deadbeef01234567'
+        assert ph_message.payload == b'encrypted'

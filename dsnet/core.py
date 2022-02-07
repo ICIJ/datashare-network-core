@@ -28,9 +28,9 @@ class PigeonHole:
         message_padded = pad_message(message, PH_MESSAGE_LENGTH)
         return encrypt(message_padded, self.sym_key)
 
-    def decrypt(self, ciphered_payload: bytes) -> str:
+    def decrypt(self, ciphered_payload: bytes) -> bytes:
         padded_payload = decrypt(ciphered_payload, self.sym_key)
-        return unpad_message(padded_payload).decode('utf-8')
+        return unpad_message(padded_payload)
 
     @property
     def address(self):
@@ -130,7 +130,7 @@ class Conversation:
         ph = self._create_recipient_pigeonhole()
         self.nb_sent_messages += 1
         self._create_and_save_next_pigeonhole()
-        return PigeonHoleMessage(ph.address, ph.encrypt(payload), self.public_key)
+        return PigeonHoleMessage(ph.address, ph.encrypt(payload), from_key=self.public_key)
 
     def add_message(self, message: PigeonHoleMessage) -> None:
         """
@@ -139,7 +139,7 @@ class Conversation:
         self.nb_recv_messages += 1
         ph = self._pigeonholes[message.address]
         cleartext = ph.decrypt(message.payload)
-        self._messages.append(PigeonHoleMessage(message.address, cleartext.encode('utf-8'), from_key=message.from_key))
+        self._messages.append(PigeonHoleMessage(message.address, cleartext, from_key=ph.public_key))
         self._create_and_save_next_pigeonhole()
 
     @property
