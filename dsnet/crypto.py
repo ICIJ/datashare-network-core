@@ -178,23 +178,21 @@ def encrypt(cleartext: bytes, key: bytes) -> bytes:
     return ciphertext
 
 
-def decrypt(ciphertext: bytes, key: bytes) -> Optional[bytes]:
+def decrypt(ciphertext: bytes, key: bytes) -> bytes:
     """
     Decrypt a message with a key.
 
     :param ciphertext: ciphertext to decrypt
     :param key: key to use to decrypt the ciphertext
     :return: decrypted ciphertext or None if the decryption failed
+    :except: InvalidTag if decryption fails
     """
 
     nonce = ciphertext[:NONCE_LENGTH]
     ciphertext = ciphertext[NONCE_LENGTH:]
     cipher = AESGCM(key)
 
-    try:
-        cleartext = cipher.decrypt(nonce, ciphertext, None)
-    except InvalidTag:
-        return None
+    cleartext = cipher.decrypt(nonce, ciphertext, None)
 
     return cleartext
 

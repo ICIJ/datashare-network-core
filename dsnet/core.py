@@ -4,8 +4,11 @@ from collections import OrderedDict
 from datetime import datetime
 from typing import List, Optional
 
+from cryptography.exceptions import InvalidTag
+
 from dsnet.crypto import compute_address, compute_sym_key, pad_message, encrypt, decrypt, unpad_message, \
     get_public_key, compute_dhke
+from dsnet.logger import logger
 
 from dsnet.message import PigeonHoleMessage, Query
 
@@ -134,14 +137,20 @@ class Conversation:
         self._create_and_save_next_pigeonhole()
         return message
 
-    def add_message(self, message: PigeonHoleMessage) -> None:
+    def add_message(self, message: PigeonHoleMessage) -> Optional[PigeonHole]:
         """
         Add a message to the conversation
         """
-        ph = self._pigeonholes[message.address]
-        cleartext = ph.decrypt(message.payload)
-        self._messages.append(PigeonHoleMessage(message.address, cleartext, from_key=message.from_key))
-        self._create_and_save_next_pigeonhole()
+        ph = self._pigeonholes.get(message.address)
+        if ph is not None:
+            try:
+                cleartext = ph.decrypt(message.payload)
+                del self._pigeonholes[message.address]
+                self._messages.append(PigeonHoleMessage(message.address, cleartext, from_key=message.from_key))
+                self._create_and_save_next_pigeonhole()
+                return ph
+            except InvalidTag:
+                logger.warning(f'failed to decrypt message at address {message.address.hex()}')
 
     @property
     def nb_sent_messages(self) -> int:

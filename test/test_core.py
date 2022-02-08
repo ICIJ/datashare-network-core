@@ -1,7 +1,7 @@
 from unittest import TestCase
 
-from dsnet.core import PigeonHole, Conversation
-from dsnet.crypto import gen_key_pair
+from dsnet.core import PigeonHole, Conversation, PH_MESSAGE_LENGTH
+from dsnet.crypto import gen_key_pair, pad_message
 from dsnet.message import Query, PigeonHoleNotification, PigeonHoleMessage
 
 
@@ -54,11 +54,27 @@ class TestConversation(TestCase):
         bob_conversation = Conversation.create_from_recipient(self.bob_keys.private, self.conversation_keys.public)
         response = bob_conversation.create_response(b'response')
 
-        alice_conversation.add_message(response)
+        ph = alice_conversation.add_message(response)
 
         self.assertEqual(alice_conversation.nb_recv_messages, 1)
+        self.assertIsNone(alice_conversation.pigeonhole_for_address(ph.address))
         self.assertEqual(alice_conversation.nb_sent_messages, 1)
         self.assertEqual(b'response', alice_conversation.last_message.payload)
+
+    def test_alice_decrypt_message_from_bob_bad_encryption(self):
+        alice_conversation = Conversation.create_from_querier(self.conversation_keys.private, self.bob_keys.public, query=b'query')
+        bob_conversation = Conversation.create_from_recipient(self.bob_keys.private, self.conversation_keys.public)
+        response = bob_conversation.create_response(b'response')
+        response.payload = pad_message(b"bad message", PH_MESSAGE_LENGTH)
+
+        self.assertIsNone(alice_conversation.add_message(response))
+        self.assertEqual(len(alice_conversation._pigeonholes), 1)
+
+    def test_alice_decrypt_message_with_no_pigeonhole_address(self):
+        alice_conversation = Conversation.create_from_querier(self.conversation_keys.private, self.bob_keys.public, query=b'query')
+
+        self.assertIsNone(alice_conversation.add_message(PigeonHoleMessage(b'unknown address', b'payload')))
+        self.assertEqual(len(alice_conversation._pigeonholes), 1)
 
     def test_bob_decrypt_message_from_alice(self):
         alice_conversation = Conversation.create_from_querier(self.conversation_keys.private, self.bob_keys.public, query=b'query')
