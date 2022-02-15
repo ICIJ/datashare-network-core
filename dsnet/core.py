@@ -121,7 +121,7 @@ class Conversation:
     @classmethod
     def create_from_querier(
             cls,
-            private_key: bytes,
+            secret_key: bytes,
             other_public_key: bytes,
             query: bytes,
             pigeonholes: List[PigeonHole] = None,
@@ -129,7 +129,7 @@ class Conversation:
     ) -> Conversation:
 
         conversation = cls(
-            private_key,
+            secret_key,
             other_public_key,
             querier=True,
             query=query,
@@ -146,14 +146,14 @@ class Conversation:
     @classmethod
     def create_from_recipient(
             cls,
-            private_key: bytes,
+            secret_key: bytes,
             other_public_key: bytes,
             pigeonholes: List[PigeonHole] = None,
             messages: List[PigeonHoleMessage] = None
     ) -> Conversation:
 
         conversation = cls(
-            private_key,
+            secret_key,
             other_public_key,
             querier=False,
             query=None,
