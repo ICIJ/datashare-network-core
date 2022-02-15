@@ -190,7 +190,7 @@ class Conversation:
             try:
                 cleartext = ph.decrypt(message.payload)
                 del self._pigeonholes[message.address]
-                self._messages.append(PigeonHoleMessage(message.address, cleartext, from_key=message.from_key))
+                self._messages.append(PigeonHoleMessage(message.address, cleartext, from_key=message.from_key, timestamp=message.timestamp))
                 self._create_and_save_next_pigeonhole()
                 return ph
             except InvalidTag:
