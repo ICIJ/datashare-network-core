@@ -40,7 +40,7 @@ PADDING_PATTERN = re.compile(PADDING_SEP + PADDING_BYTE + b"*$")
 ENCRYPTION_KEY_LENGTH = 32
 ENCRYPTION_METADATA_LENGTH = 28
 
-KeyPair = namedtuple('KeyPair', 'private public')
+KeyPair = namedtuple('KeyPair', 'secret public')
 
 
 def _hash_everything(*args: bytes) -> bytes:

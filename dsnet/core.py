@@ -17,13 +17,57 @@ PH_MESSAGE_LENGTH: int = 2048
 
 
 class PigeonHole:
-    def __init__(self, public_key_for_dh: bytes, private_key_for_dh: bytes = None, sender_public_key: bytes = None,
-                 message_number: int = 0, dh_key: bytes = None, peer_key: bytes = None, conversation_id: Optional[int] = None) -> None:
-        self.dh_key = compute_dhke(private_key_for_dh, public_key_for_dh) if dh_key is None else dh_key
-        self.public_key = sender_public_key if sender_public_key is not None else public_key_for_dh
-        self.peer_key = peer_key if peer_key is not None else public_key_for_dh if sender_public_key is not None else None
+    def __init__(self, public_key_for_dh: bytes = None, secret_key_for_dh: bytes = None, key_for_hash: bytes = None,
+                 message_number: int = 0, dh_key: bytes = None, conversation_id: Optional[int] = None) -> None:
+        self.dh_key = compute_dhke(secret_key_for_dh, public_key_for_dh) if dh_key is None else dh_key
+        self.key_for_hash = key_for_hash
         self.message_number = message_number
         self.conversation_id = conversation_id
+
+    @classmethod
+    def create_querier_sending_ph(cls, pkx: bytes, skq: bytes, number_messages_sent: int) -> PigeonHole:
+        """
+        addr := H("addr" || dh(skq, pkx) || pkq || #msg)
+        key_sym := H("key" || dh(skq, pkx) || pkq || #msg)
+        :param pkx: public key recipient (potential respondent)
+        :param skq: secret key query
+        :param number_messages_sent:
+        :return: PigeonHole
+        """
+        return cls(pkx, skq, get_public_key(skq), number_messages_sent)
+
+    @classmethod
+    def create_querier_receiving_ph(cls, pkx: bytes, skq: bytes, number_messages_received: int) -> PigeonHole:
+        """
+        addr := H("addr" || dh(skq, pkx) || pkx || #msg)
+        :param pkx: public key recipient (potential respondent)
+        :param skq: secret key query
+        :param number_messages_received:
+        :return: PigeonHole
+        """
+        return cls(pkx, skq, pkx, number_messages_received)
+
+    @classmethod
+    def create_respondent_sending_ph(cls, pkq: bytes, skx: bytes, number_messages_sent: int) -> PigeonHole:
+        """
+        addr := H("addr" || dh(skx, pkq) || pkx || #msg)
+        :param pkq: public key query
+        :param skx: respondent secret key
+        :param number_messages_sent:
+        :return: PigeonHole
+        """
+        return cls(pkq, skx, get_public_key(skx), number_messages_sent)
+
+    @classmethod
+    def create_respondent_receiving_ph(cls, pkq: bytes, skx: bytes, number_messages_received: int) -> PigeonHole:
+        """
+        addr := H("addr" || dh(skx, pkq) || pkq || #msg)
+        :param pkq: public key query
+        :param skx: respondent secret key
+        :param number_messages_received:
+        :return: PigeonHole
+        """
+        return cls(pkq, skx, pkq, number_messages_received)
 
     def encrypt(self, message: bytes) -> bytes:
         """
@@ -39,11 +83,11 @@ class PigeonHole:
 
     @property
     def address(self):
-        return compute_address(self.dh_key, self.public_key, self.message_number)
+        return compute_address(self.dh_key, self.key_for_hash, self.message_number)
 
     @property
     def sym_key(self):
-        return compute_sym_key(self.dh_key, self.public_key, self.message_number)
+        return compute_sym_key(self.dh_key, self.key_for_hash, self.message_number)
 
     def __repr__(self):
         return 'PigeonHole(address: %s nb: %s)' % (self.address.hex(), self.message_number)
@@ -51,7 +95,7 @@ class PigeonHole:
 
 class Conversation:
     def __init__(self,
-                 private_key: bytes,
+                 secret_key: bytes,
                  other_public_key: bytes,
                  querier: bool = False,
                  created_at: Optional[datetime] = None,
@@ -60,8 +104,8 @@ class Conversation:
                  messages: List[PigeonHoleMessage] = None,
                  id: Optional[int] = None
                  ) -> None:
-        self.private_key = private_key
-        self.public_key = get_public_key(private_key)
+        self.secret_key = secret_key
+        self.public_key = get_public_key(secret_key)
         self.other_public_key = other_public_key
         self.query = query
         self.querier = querier
@@ -161,8 +205,8 @@ class Conversation:
         return sum(1 for _ in filter(lambda m: m.from_key != self.public_key, self._messages))
 
     @property
-    def last_address(self) -> bytes:
-        return self._pigeonholes[next(reversed(self._pigeonholes))].address
+    def last_address(self) -> Optional[bytes]:
+        return self._pigeonholes[next(reversed(self._pigeonholes))].address if self._pigeonholes else None
 
     @property
     def last_message(self) -> PigeonHoleMessage:
@@ -180,12 +224,16 @@ class Conversation:
         return ph
 
     def _create_recipient_pigeonhole(self):
-        return self._create_pigeonhole(for_sending=True)
+        if self.querier:
+            return PigeonHole.create_querier_sending_ph(self.other_public_key, self.secret_key, self.nb_sent_messages)
+        else:
+            return PigeonHole.create_respondent_sending_ph(self.other_public_key, self.secret_key, self.nb_sent_messages)
 
-    def _create_pigeonhole(self, for_sending=False) -> PigeonHole:
-        nb_messages = self.nb_sent_messages if for_sending else self.nb_recv_messages
-        sender_public_key = self.public_key if self.querier else None
-        return PigeonHole(self.other_public_key, self.private_key, sender_public_key, nb_messages)
+    def _create_pigeonhole(self) -> PigeonHole:
+        if self.querier:
+            return PigeonHole.create_querier_receiving_ph(self.other_public_key, self.secret_key, self.nb_recv_messages)
+        else:
+            return PigeonHole.create_respondent_receiving_ph(self.other_public_key, self.secret_key, self.nb_recv_messages)
 
     def __str__(self) -> str:
         return self.__repr__()
