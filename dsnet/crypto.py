@@ -5,12 +5,12 @@ Cryptographic operations.
 import random
 import re
 import struct
-from collections import namedtuple
 from hashlib import sha256
 from secrets import token_bytes
-from typing import Optional
-from cryptography.exceptions import InvalidTag
+from typing import NamedTuple
+
 from cryptography.hazmat.backends import default_backend
+from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 from cryptography.hazmat.primitives.asymmetric.x25519 import X25519PrivateKey, X25519PublicKey
 from cryptography.hazmat.primitives.ciphers.aead import AESGCM
 from cryptography.hazmat.primitives.serialization import (
@@ -23,6 +23,8 @@ from cryptography.hazmat.primitives.serialization import (
 )
 
 # Cryptographically secure pseudo-random generator.
+from sscred import AbeSignature
+
 RNG = random.SystemRandom()
 
 
@@ -32,6 +34,7 @@ KEY_PREFIX = b"key"
 MESSAGE_NUM_FORMAT = "!Q"
 PUBLIC_KEY_LENGTH: int = 32
 SECRET_KEY_LENGTH: int = 32
+SIGNATURE_LENGTH: int = 64
 NONCE_LENGTH = 12
 PADDING_SEP = b"\x80"
 PADDING_BYTE = b"\x00"
@@ -40,7 +43,10 @@ PADDING_PATTERN = re.compile(PADDING_SEP + PADDING_BYTE + b"*$")
 ENCRYPTION_KEY_LENGTH = 32
 ENCRYPTION_METADATA_LENGTH = 28
 
-KeyPair = namedtuple('KeyPair', 'secret public')
+
+class KeyPair(NamedTuple):
+    secret: bytes
+    public: bytes
 
 
 def _hash_everything(*args: bytes) -> bytes:

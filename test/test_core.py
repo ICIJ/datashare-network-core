@@ -1,8 +1,36 @@
+from typing import List
 from unittest import TestCase
+
+from sscred import AbeSignature, AbeParam, packb, AbeSigner
 
 from dsnet.core import PigeonHole, Conversation, PH_MESSAGE_LENGTH
 from dsnet.crypto import gen_key_pair, pad_message
 from dsnet.message import Query, PigeonHoleNotification, PigeonHoleMessage
+from dsnet.token import generate_commitments, generate_challenges, generate_pretokens, generate_tokens, AbeToken
+
+
+def gen_dummy_abe_signature():
+    params = AbeParam()
+    return AbeSignature(
+        b"foo",
+        params.group.hash_to_point(b"foo"),
+        params.group.hash_to_point(b"foo1"),
+        params.group.order(),
+        params.group.order() * 2,
+        params.group.order() * 3,
+        params.group.order() * 4,
+        params.group.order() * 5,
+        params.group.order() * 6
+    )
+
+
+def create_tokens(nb: int) -> List[AbeToken]:
+    sk, pk = AbeParam().generate_new_key_pair()
+    signer = AbeSigner(sk, pk)
+    coms, coms_internal = generate_commitments(signer, nb)
+    challenges, challenges_int, token_skeys = generate_challenges(pk, coms)
+    pre_tokens = generate_pretokens(signer, challenges, coms_internal)
+    return generate_tokens(pk, challenges_int, token_skeys, pre_tokens)
 
 
 class TestPigeonHole(TestCase):
@@ -24,6 +52,8 @@ class TestPigeonHole(TestCase):
 
 
 class TestConversation(TestCase):
+    # Todo: Add tokens to queries + verify signature
+
     def setUp(self) -> None:
         self.bob_keys = gen_key_pair()
         self.alice_keys = gen_key_pair()
@@ -32,7 +62,8 @@ class TestConversation(TestCase):
     def test_alice_sends_query_conversation(self):
         conversation = Conversation.create_from_querier(self.conversation_keys.secret, self.bob_keys.public, query=b'query')
 
-        query = conversation.get_query()
+        [token] = create_tokens(1)
+        query = conversation.create_query(token)
 
         self.assertEqual(conversation.query, b'query')
         self.assertEqual(conversation.nb_recv_messages, 0)
@@ -125,29 +156,29 @@ class TestConversation(TestCase):
 
 
 class TestSerialization(TestCase):
-    def test_serialize_query(self):
+    def test_serialize_deserialize_query(self):
         keys = gen_key_pair()
-        self.assertEqual(b'\x01' + keys.public + 'query'.encode(), Query(keys.public, b'query').to_bytes())
+        query_bytes = Query(keys.public, gen_dummy_abe_signature(), b'signature', b'query').to_bytes()
+        self.assertIsInstance(query_bytes, bytes)
 
-    def test_deserialize_query(self):
-        keys = gen_key_pair()
-        query = Query.from_bytes(b'\x01' + keys.public + b'query')
-        self.assertEqual(query.public_key, keys.public)
-        self.assertEqual(query.payload, b'query')
+        query = Query.from_bytes(query_bytes)
+        self.assertIsInstance(query, Query)
+        self.assertEqual(b'query', query.payload)
+        self.assertEqual(b'signature', query.signature)
+        self.assertEqual(keys.public, query.public_key)
 
-    def test_deserialize_bad_query(self):
+    def test_deserialize_wrong_payload(self):
         with self.assertRaises(ValueError):
-            Query.from_bytes(b'\x02' + b'not a query payload')
+            Query.from_bytes(packb(["te", "st"]))
 
-    def test_serialize_ph_notification(self):
+    def test_serialize_deserialize_ph_notification(self):
         address = b'deadbeef01234567deadbeef01234567'
         ph_notif = PigeonHoleNotification.from_address(address)
-        assert ph_notif.to_bytes() == b'\x04dea'
+        notification_raw = ph_notif.to_bytes()
+        self.assertIsInstance(notification_raw, bytes)
 
-    def test_deserialize_ph_notification(self):
-        payload = bytes.fromhex("04deadbe")
-        ph_notif = PigeonHoleNotification.from_bytes(payload)
-        assert 'deadbe' == ph_notif.adr_hex
+        notification = PigeonHoleNotification.from_bytes(notification_raw)
+        self.assertEqual(notification, b"dea".hex())
 
     def test_deserialize_bad_notification_code(self):
         with self.assertRaises(ValueError):
@@ -157,10 +188,10 @@ class TestSerialization(TestCase):
         address = b'deadbeef01234567deadbeef01234567'
         payload = b'encrypted'
         ph_message = PigeonHoleMessage(address, payload)
-        assert ph_message.to_bytes() == b'\x03' + address + payload
+        message = ph_message.to_bytes()
+        self.assertIsInstance(message, bytes)
 
-    def test_deserialize_ph_message(self):
-        payload = b'\x03deadbeef01234567deadbeef01234567encrypted'
-        ph_message = PigeonHoleMessage.from_bytes(payload)
-        assert ph_message.address == b'deadbeef01234567deadbeef01234567'
-        assert ph_message.payload == b'encrypted'
+        deserialized = PigeonHoleMessage.from_bytes(message)
+        self.assertIsInstance(deserialized, PigeonHoleMessage)
+        self.assertEqual(deserialized.address, address)
+        self.assertEqual(deserialized.payload, payload)

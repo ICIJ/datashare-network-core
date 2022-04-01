@@ -13,6 +13,8 @@ from dsnet.logger import logger
 from dsnet.message import PigeonHoleMessage, Query
 
 # Length of exchanged messages in bytes.
+from dsnet.token import AbeToken
+
 PH_MESSAGE_LENGTH: int = 2048
 
 
@@ -165,11 +167,12 @@ class Conversation:
             conversation._messages.append(PigeonHoleMessage(None, None, from_key=conversation.other_public_key))
         return conversation
 
-    def get_query(self) -> Query:
+    def create_query(self, token: AbeToken) -> Query:
         """
         Returns a new query object
         """
-        return Query(self.public_key, self.query) if self.query else None
+        signature: bytes = token.sign(self.query)
+        return Query(self.public_key, token.token, signature, self.query) if self.query else None
 
     def create_response(self, payload: bytes) -> PigeonHoleMessage:
         """
