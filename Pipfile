@@ -5,7 +5,7 @@ name = "pypi"
 
 [packages]
 cryptography= '>=3.0'
-sscred = '0.2.1'
+sscred = '==0.2.1'
 
 [dev-packages]
 bumpversion = "==0.6.0"

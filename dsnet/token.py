@@ -3,7 +3,7 @@ from typing import NamedTuple, List, Callable, Awaitable, Tuple
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 from sscred import AbeSignature, SignerCommitMessage, BlindedChallengeMessage, SignerResponseMessage, AbePublicKey, \
-    unpackb, AbeUser, UserBlindedChallengeInternalState, packb, AbeParam, AbeSigner, SignerCommitmentInternalState
+    AbeUser, UserBlindedChallengeInternalState, AbeSigner, SignerCommitmentInternalState
 
 
 class AbeToken(NamedTuple):
@@ -84,7 +84,7 @@ def verify(message: bytes, signature: bytes, public_key: bytes) -> None:
     :param message:
     :param signature:
     :param public_key:
-    :return:
+    :raises cryptography.exceptions.InvalidSignature: the signature is invalid
     """
     public_key_obj = Ed25519PublicKey.from_public_bytes(public_key)
     public_key_obj.verify(signature, message)

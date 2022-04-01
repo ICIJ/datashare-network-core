@@ -171,7 +171,7 @@ class Conversation:
         """
         Returns a new query object
         """
-        signature: bytes = token.sign(self.query)
+        signature: bytes = token.sign(self.public_key + self.query)
         return Query(self.public_key, token.token, signature, self.query) if self.query else None
 
     def create_response(self, payload: bytes) -> PigeonHoleMessage:

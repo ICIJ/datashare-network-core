@@ -5,11 +5,11 @@ from datetime import datetime
 from enum import IntEnum
 from typing import Optional
 
-from sscred import AbeSignature, packb, unpackb
+from cryptography.exceptions import InvalidSignature
+from sscred import AbeSignature, packb, unpackb, AbePublicKey
 from sscred.pack import add_msgpack_support
 
-from dsnet.crypto import ENCRYPTION_KEY_LENGTH, ADDRESS_LENGTH
-
+from dsnet.token import verify
 
 class Message(metaclass=abc.ABCMeta):
     """
@@ -38,7 +38,7 @@ class MessageType(IntEnum):
     @classmethod
     def dumps(cls, msg: Message) -> bytes:
         return msg.to_bytes()
-    
+
     @classmethod
     def loads(cls, payload: bytes) -> Message:
         obj = unpackb(payload)
@@ -57,6 +57,21 @@ class Query(Message):
         self.signature = signature
         self.token = token
         self.payload = payload
+
+    def validate(self, token_server_public_key: AbePublicKey) -> bool:
+        """
+        Validates the query.
+
+        :param server_public_key: public key of the token server
+        :return: True if the query is valid, False otherwise
+        """
+        try:
+            verify(self.public_key + self.payload, self.signature, self.token.message)
+        except InvalidSignature:
+            return False
+
+        return token_server_public_key.verify_signature(self.token)
+
 
     def type(self) -> MessageType:
         return MessageType.QUERY

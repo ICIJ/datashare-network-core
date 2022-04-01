@@ -1,3 +1,4 @@
+from copy import deepcopy
 from typing import List
 from unittest import TestCase
 
@@ -7,6 +8,9 @@ from dsnet.core import PigeonHole, Conversation, PH_MESSAGE_LENGTH
 from dsnet.crypto import gen_key_pair, pad_message
 from dsnet.message import Query, PigeonHoleNotification, PigeonHoleMessage
 from dsnet.token import generate_commitments, generate_challenges, generate_pretokens, generate_tokens, AbeToken
+
+
+SERVER_SECRET_KEY, SERVER_PUBLIC_KEY = AbeParam().generate_new_key_pair()
 
 
 def gen_dummy_abe_signature():
@@ -25,12 +29,11 @@ def gen_dummy_abe_signature():
 
 
 def create_tokens(nb: int) -> List[AbeToken]:
-    sk, pk = AbeParam().generate_new_key_pair()
-    signer = AbeSigner(sk, pk)
+    signer = AbeSigner(SERVER_SECRET_KEY, SERVER_PUBLIC_KEY)
     coms, coms_internal = generate_commitments(signer, nb)
-    challenges, challenges_int, token_skeys = generate_challenges(pk, coms)
+    challenges, challenges_int, token_skeys = generate_challenges(SERVER_PUBLIC_KEY, coms)
     pre_tokens = generate_pretokens(signer, challenges, coms_internal)
-    return generate_tokens(pk, challenges_int, token_skeys, pre_tokens)
+    return generate_tokens(SERVER_PUBLIC_KEY, challenges_int, token_skeys, pre_tokens)
 
 
 class TestPigeonHole(TestCase):
@@ -58,6 +61,23 @@ class TestConversation(TestCase):
         self.bob_keys = gen_key_pair()
         self.alice_keys = gen_key_pair()
         self.conversation_keys = gen_key_pair()
+
+    def test_query_validation(self):
+        conversation = Conversation.create_from_querier(self.conversation_keys.secret, self.bob_keys.public, query=b'query')
+
+        [token] = create_tokens(1)
+        query = conversation.create_query(token)
+        assert query.validate(SERVER_PUBLIC_KEY)
+
+        _, pk = AbeParam().generate_new_key_pair()
+        assert not query.validate(pk)
+
+        query_invalid_payload = Query(query.public_key, query.token, query.signature, b"invalid")
+        assert not query_invalid_payload.validate(SERVER_PUBLIC_KEY)
+
+        query_invalid_public_key = Query(b"deadbeefc0febabe", query.token, query.signature, query.payload)
+        assert not query_invalid_public_key.validate(SERVER_PUBLIC_KEY)
+
 
     def test_alice_sends_query_conversation(self):
         conversation = Conversation.create_from_querier(self.conversation_keys.secret, self.bob_keys.public, query=b'query')
