@@ -54,6 +54,18 @@ class TestPigeonHole(TestCase):
         self.assertEqual(b'response', self.ph_alice_recv.decrypt(encrypted_response))
 
 
+class TestMessages(TestCase):
+    def test_create_query(self):
+        [token] = create_tokens(1)
+        _, pkey = gen_key_pair()
+        query = Query.create(pkey, token, b'payload')
+
+        self.assertEqual(query.public_key, pkey)
+        self.assertEqual(query.token, token.token)
+        self.assertEqual(query.payload, b'payload')
+        self.assertTrue(query.validate(SERVER_PUBLIC_KEY))
+
+
 class TestConversation(TestCase):
     # Todo: Add tokens to queries + verify signature
 

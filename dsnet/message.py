@@ -9,7 +9,8 @@ from cryptography.exceptions import InvalidSignature
 from sscred import AbeSignature, packb, unpackb, AbePublicKey
 from sscred.pack import add_msgpack_support
 
-from dsnet.token import verify
+from dsnet.token import verify, AbeToken
+
 
 class Message(metaclass=abc.ABCMeta):
     """
@@ -85,6 +86,11 @@ class Query(Message):
         if not isinstance(res, Query):
             raise ValueError("Payload is not a query")
         return res
+
+    @classmethod
+    def create(cls, public_key: bytes, token: AbeToken, payload: bytes) -> Query:
+        signature: bytes = token.sign(public_key + payload)
+        return cls(public_key, token.token, signature, payload)
 
 
 add_msgpack_support(Query, Query.MSGPACK_ID, add_cls_methods=False)
