@@ -1,6 +1,8 @@
-from typing import NamedTuple, List, Callable, Awaitable, Tuple
+from __future__ import annotations
+from typing import NamedTuple, List, Tuple
 
 from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives._serialization import PrivateFormat, NoEncryption, Encoding
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey, Ed25519PublicKey
 from sscred import AbeSignature, SignerCommitMessage, BlindedChallengeMessage, SignerResponseMessage, AbePublicKey, \
     AbeUser, UserBlindedChallengeInternalState, AbeSigner, SignerCommitmentInternalState
@@ -18,6 +20,13 @@ class AbeToken(NamedTuple):
         :return: signature
         """
         return self.secret_key.sign(message)
+
+    def __eq__(self, other: AbeToken) -> bool:
+        return self.token == other.token and secret_key_binary(self.secret_key) == secret_key_binary(other.secret_key)
+
+
+def secret_key_binary(skey: Ed25519PrivateKey) -> bytes:
+    return skey.private_bytes(Encoding.Raw, PrivateFormat.Raw, NoEncryption())
 
 
 def generate_commitments(
