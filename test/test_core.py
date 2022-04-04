@@ -29,7 +29,7 @@ def gen_dummy_abe_signature():
 
 
 def create_tokens(nb: int) -> List[AbeToken]:
-    signer = AbeSigner(SERVER_SECRET_KEY, SERVER_PUBLIC_KEY)
+    signer = AbeSigner(SERVER_SECRET_KEY, SERVER_PUBLIC_KEY, disable_acl=True)
     coms, coms_internal = generate_commitments(signer, nb)
     challenges, challenges_int, token_skeys = generate_challenges(SERVER_PUBLIC_KEY, coms)
     pre_tokens = generate_pretokens(signer, challenges, coms_internal)
