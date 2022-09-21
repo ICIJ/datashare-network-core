@@ -9,6 +9,8 @@ from cryptography.exceptions import InvalidSignature
 from sscred import AbeSignature, packb, unpackb, AbePublicKey
 from sscred.pack import add_msgpack_support
 
+from cuckoopy_mod import CuckooFilter
+from cuckoopy_mod.bucket import Bucket
 from dsnet.token import verify, AbeToken
 
 
@@ -35,6 +37,7 @@ class MessageType(IntEnum):
     RESPONSE = 2
     MESSAGE = 3
     NOTIFICATION = 4
+    PUBLICATION = 5
 
     @classmethod
     def dumps(cls, msg: Message) -> bytes:
@@ -158,3 +161,30 @@ class PigeonHoleNotification(Message):
 
 add_msgpack_support(PigeonHoleNotification, PigeonHoleNotification.MSGPACK_ID, add_cls_methods=False)
 
+
+class PublicationMessage(Message):
+    MSGPACK_ID = 103
+
+    def __init__(self, nym: str, public_key: bytes, cuckoo_filter: CuckooFilter, num_documents: int) -> None:
+        self.cuckoo_filter = cuckoo_filter
+        self.num_documents = num_documents
+        self.public_key = public_key
+        self.nym = nym
+
+    def type(self) -> MessageType:
+        return MessageType.PUBLICATION
+
+    def to_bytes(self) -> bytes:
+        return packb(self)
+
+    @classmethod
+    def from_bytes(cls, payload: bytes):
+        res = unpackb(payload)
+        if not isinstance(res, PublicationMessage):
+            raise ValueError("Payload is not a publication")
+        return res
+
+
+add_msgpack_support(PublicationMessage, PublicationMessage.MSGPACK_ID, add_cls_methods=False)
+add_msgpack_support(CuckooFilter, 104, add_cls_methods=False)
+add_msgpack_support(Bucket, 105, add_cls_methods=False)

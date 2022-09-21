@@ -6,7 +6,8 @@ from sscred import AbeSignature, AbeParam, packb, AbeSigner
 
 from dsnet.core import PigeonHole, Conversation, PH_MESSAGE_LENGTH
 from dsnet.crypto import gen_key_pair, pad_message
-from dsnet.message import Query, PigeonHoleNotification, PigeonHoleMessage
+from cuckoopy_mod import CuckooFilter
+from dsnet.message import Query, PigeonHoleNotification, PigeonHoleMessage, PublicationMessage
 from dsnet.token import generate_commitments, generate_challenges, generate_pretokens, generate_tokens, AbeToken
 
 
@@ -227,3 +228,16 @@ class TestSerialization(TestCase):
         self.assertIsInstance(deserialized, PigeonHoleMessage)
         self.assertEqual(deserialized.address, address)
         self.assertEqual(deserialized.payload, payload)
+
+    def test_serialize_publication_message(self):
+        keys = gen_key_pair()
+        cuckoo_filter = CuckooFilter(capacity=1000, bucket_size=6, fingerprint_size=4)
+        cuckoo_filter.insert(b"deadbeef")
+        cuckoo_filter.insert(b"cafebabe")
+        publication_msg = PublicationMessage("nym_key", keys.public, cuckoo_filter, 2)
+        message = publication_msg.to_bytes()
+        self.assertIsInstance(message, bytes)
+
+        deserialized = PublicationMessage.from_bytes(message)
+        self.assertIsInstance(deserialized, PublicationMessage)
+        self.assertEqual(deserialized.num_documents, 2)

@@ -6,6 +6,7 @@ name = "pypi"
 [packages]
 cryptography= '>=3.0'
 sscred = {editable = true, ref = "6689fa7dbe33c176593dc49a82a4e915a1d423f4", git = "https://github.com/spring-epfl/SSCred.git"}
+datashare-network-crypto = {editable = true, ref = "1271a7cd10dd586c3a5f62e4fbd511472ef6ecfe", git = "https://github.com/spring-epfl/datashare-network-crypto.git"}
 
 [dev-packages]
 bumpversion = "==0.6.0"
