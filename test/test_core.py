@@ -2,11 +2,11 @@ from copy import deepcopy
 from typing import List
 from unittest import TestCase
 
+from cuckoo.filter import BCuckooFilter
 from sscred import AbeSignature, AbeParam, packb, AbeSigner
 
 from dsnet.core import PigeonHole, Conversation, PH_MESSAGE_LENGTH
 from dsnet.crypto import gen_key_pair, pad_message
-from cuckoopy_mod import CuckooFilter
 from dsnet.message import Query, PigeonHoleNotification, PigeonHoleMessage, PublicationMessage
 from dsnet.token import generate_commitments, generate_challenges, generate_pretokens, generate_tokens, AbeToken
 
@@ -231,7 +231,7 @@ class TestSerialization(TestCase):
 
     def test_serialize_publication_message(self):
         keys = gen_key_pair()
-        cuckoo_filter = CuckooFilter(capacity=1000, bucket_size=6, fingerprint_size=4)
+        cuckoo_filter = BCuckooFilter(capacity=1000, error_rate=0.001, bucket_size=6)
         cuckoo_filter.insert(b"deadbeef")
         cuckoo_filter.insert(b"cafebabe")
         publication_msg = PublicationMessage("nym_key", keys.public, cuckoo_filter, 2)

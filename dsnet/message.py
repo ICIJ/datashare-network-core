@@ -5,12 +5,12 @@ from datetime import datetime
 from enum import IntEnum
 from typing import Optional
 
+from bitarray import bitarray
 from cryptography.exceptions import InvalidSignature
+from cuckoo.filter import BCuckooFilter
 from sscred import AbeSignature, packb, unpackb, AbePublicKey
-from sscred.pack import add_msgpack_support
+from sscred.pack import add_msgpack_support, _pack_reg, petlib
 
-from cuckoopy_mod import CuckooFilter
-from cuckoopy_mod.bucket import Bucket
 from dsnet.token import verify, AbeToken
 
 
@@ -165,7 +165,7 @@ add_msgpack_support(PigeonHoleNotification, PigeonHoleNotification.MSGPACK_ID, a
 class PublicationMessage(Message):
     MSGPACK_ID = 103
 
-    def __init__(self, nym: str, public_key: bytes, cuckoo_filter: CuckooFilter, num_documents: int) -> None:
+    def __init__(self, nym: str, public_key: bytes, cuckoo_filter: BCuckooFilter, num_documents: int) -> None:
         self.cuckoo_filter = cuckoo_filter
         self.num_documents = num_documents
         self.public_key = public_key
@@ -185,6 +185,42 @@ class PublicationMessage(Message):
         return res
 
 
+def add_cuckoo_filter_msgpack_support(ext):
+
+    def enc(obj):
+        d = {
+            "capacity": obj.__dict__["capacity"],
+            "bucket_size": obj.__dict__["bucket_size"],
+            "max_kicks": obj.__dict__["max_kicks"],
+            "error_rate": obj.__dict__["error_rate"],
+            "fingerprint_size": obj.__dict__["fingerprint_size"],
+            "size": obj.__dict__["size"],
+            "buckets_len": len(obj.__dict__["buckets"]),
+            "buckets": obj.__dict__["buckets"].tobytes(),
+        }
+        return packb(d)
+
+    def dec(data):
+        obj = BCuckooFilter.__new__(BCuckooFilter)
+        raw = unpackb(data)
+        bucket_len = raw["buckets_len"]
+        buckets = bitarray(endian="little")
+        buckets.frombytes(raw["buckets"])
+        d = {
+            "capacity": raw["capacity"],
+            "bucket_size": raw["bucket_size"],
+            "max_kicks": raw["max_kicks"],
+            "error_rate": raw["error_rate"],
+            "fingerprint_size": raw["fingerprint_size"],
+            "size": raw["size"],
+            "buckets": buckets[:bucket_len]
+        }
+        obj.__dict__.update(d)
+        return obj
+
+    _pack_reg[BCuckooFilter] = (ext, enc)
+    petlib.pack.register_coders(BCuckooFilter, ext, enc, dec)
+
+
 add_msgpack_support(PublicationMessage, PublicationMessage.MSGPACK_ID, add_cls_methods=False)
-add_msgpack_support(CuckooFilter, 104, add_cls_methods=False)
-add_msgpack_support(Bucket, 105, add_cls_methods=False)
+add_cuckoo_filter_msgpack_support(104)
