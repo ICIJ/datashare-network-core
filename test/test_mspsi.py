@@ -1,50 +1,61 @@
 import random
 import string
 import unittest
+from datetime import datetime, timedelta
+from uuid import uuid4
 
 from petlib.bn import Bn
 
-from dsnet.mspsi import MSPSIQuerier, MSPSIDocumentOwner
+from dsnet.mspsi import Document, MSPSIQuerier, MSPSIDocumentOwner, NamedEntity, NamedEntityCategory
 
 
 class TestMSPSI(unittest.TestCase):
     def test_functionality(self):
-        docs = [[b'foo', b'bar', b''], [b'foo', b'baz'], [b'asdf']]
-        (secret_server, published) = MSPSIDocumentOwner.publish((kwds for kwds in docs), 100)
+        docs = [
+            Document("beef", datetime.utcnow() - timedelta(seconds=10)),
+            Document("feed", datetime.utcnow() - timedelta(seconds=8)),
+            Document("coffee", datetime.utcnow() - timedelta(seconds=6)),
+        ]
+        nes = [
+            NamedEntity('beef', NamedEntityCategory.PERSON, 'foo'),
+            NamedEntity('beef', NamedEntityCategory.PERSON, 'bar'),
+            NamedEntity('beef', NamedEntityCategory.PERSON, 'tux'),
+            NamedEntity('feed', NamedEntityCategory.PERSON, 'baz'),
+            NamedEntity('feed', NamedEntityCategory.PERSON, 'foo'),
+            NamedEntity('coffee', NamedEntityCategory.PERSON, 'asdf'),
+        ]
+        (secret_server, published) = MSPSIDocumentOwner.publish((kwds for kwds in nes), docs, 4)
 
         # Case where respectively 2, 1 and no keywords matches.
-        (secret_client, query) = MSPSIQuerier.query([b'foo', b''])
+        (secret_client, query) = MSPSIQuerier.query(['foo', 'tux'])
         reply = MSPSIDocumentOwner.reply(secret_server, query)
-        cards = MSPSIQuerier.compute_cardinalities(secret_client, reply, 3, published)
+        cards = MSPSIQuerier.process_reply(secret_client, reply, 3, published)
 
-        for i, j in zip(cards, [2, 1, 0]):
-            self.assertEqual(i, j)
+        self.assertEqual(cards, [[0, 1], [0], []])
 
         # Case where respectively 1, 1 and no keywords matches.
-        (secret_client, query) = MSPSIQuerier.query([b'bar', b'baz'])
+        (secret_client, query) = MSPSIQuerier.query(['bar', 'baz'])
         reply = MSPSIDocumentOwner.reply(secret_server, query)
-        cards = MSPSIQuerier.compute_cardinalities(secret_client, reply, 3, published)
+        cards = MSPSIQuerier.process_reply(secret_client, reply, 3, published)
 
-        for i, j in zip(cards, [1, 1, 0]):
-            self.assertEqual(i, j)
+        self.assertEqual(cards, [[0], [1], []])
 
         # Case where respectively 0, 0 and 1 keywords matches.
-        (secret_client, query) = MSPSIQuerier.query([b'asdf', b'ghjk'])
+        (secret_client, query) = MSPSIQuerier.query(['asdf', 'ghjk'])
         reply = MSPSIDocumentOwner.reply(secret_server, query)
-        cards = MSPSIQuerier.compute_cardinalities(secret_client, reply, 3, published)
+        cards = MSPSIQuerier.process_reply(secret_client, reply, 3, published)
 
-        for i, j in zip(cards, [0, 0, 1]):
-            self.assertEqual(i, j)
+        self.assertEqual(cards, [[], [], [0]])
 
-
+    @unittest.skip("Benchmark to measure occurrences of false negatives and false positives")
     def test_false_positives(self):
         # Random data generation with keywords known to be inside the corpus
         random.seed(0)
 
         # sets of documents are generated.
-        kwds_in_doc_and_in_query = set([b''.join([random.choice(string.ascii_lowercase).encode('utf-8') for _ in range(16)]) for _ in range(20)])
-        kwds_in_doc_not_in_query = set([b''.join([random.choice(string.ascii_lowercase).encode('utf-8') for _ in range(16)]) for _ in range(1000)])
-        kwds_not_in_doc_in_query = set([b''.join([random.choice(string.ascii_lowercase).encode('utf-8') for _ in range(16)]) for _ in range(1000)])
+        kwds_in_doc_and_in_query = set([''.join([random.choice(string.ascii_lowercase) for _ in range(16)]) for _ in range(20)])
+        kwds_in_doc_not_in_query = set([''.join([random.choice(string.ascii_lowercase) for _ in range(16)]) for _ in range(1000)])
+        kwds_not_in_doc_in_query = set([''.join([random.choice(string.ascii_lowercase) for _ in range(16)]) for _ in range(1000)])
 
         # Ensure there ate no intersection between these two sets.
         kwds_in_doc_not_in_query -= kwds_in_doc_and_in_query
@@ -58,7 +69,9 @@ class TestMSPSI(unittest.TestCase):
         kwds_not_in_doc_in_query = list(kwds_not_in_doc_in_query)
 
         # generate documents
-        docs = [kwds_in_doc_and_in_query + [random.choice(kwds_in_doc_not_in_query) for _ in range(100)] for _ in range(1000)]
+        raw_docs = [kwds_in_doc_and_in_query + [random.choice(kwds_in_doc_not_in_query) for _ in range(100)] for _ in range(1000)]
+        docs = [Document(str(uuid4()), datetime.now() - timedelta(seconds=1000-i)) for i in range(1000)]
+        nes = [NamedEntity(doc.identifier, NamedEntityCategory.PERSON, kwd) for doc, kwds in zip(docs, raw_docs) for kwd in kwds]
 
         # generates queries content.
         queries_full = [[random.choice(kwds_in_doc_and_in_query) for _ in range(10)] for _ in range(1000)]
@@ -66,7 +79,7 @@ class TestMSPSI(unittest.TestCase):
         queries_50 = [([random.choice(kwds_in_doc_and_in_query) for _ in range(5)] + [random.choice(kwds_not_in_doc_in_query) for _ in range(5)]) for _ in range(1000)]
 
         # Publication of the documents
-        (secret_server, published) = MSPSIDocumentOwner.publish((doc for doc in docs), 60000)
+        (secret_server, published) = MSPSIDocumentOwner.publish((ne for ne in nes), docs, 60000)
 
         err_false_neg = 0
         err_false_pos = 0
@@ -79,17 +92,17 @@ class TestMSPSI(unittest.TestCase):
 
                 (secret_client, query) = MSPSIQuerier.query(query)
                 reply = MSPSIDocumentOwner.reply(secret_server, query)
-                cards = MSPSIQuerier.compute_cardinalities(secret_client, reply, len(docs), published)
+                cards = MSPSIQuerier.process_reply(secret_client, reply, len(docs), published)
 
                 for i, j in zip(cards, expected):
-                    if i != j:
-                        if i > j:
-                            n_false = i - j
-                            print('{} false positive found (expected: {}, found: {})'.format(n_false, j, i))
+                    if len(i) != j:
+                        if len(i) > j:
+                            n_false = len(i) - j
+                            print('{} false positive found (expected: {}, found: {})'.format(n_false, j, len(i)))
                             err_false_pos += n_false
                         else:
-                            n_false = j - i
-                            print('{} false negatives found (expected: {}, found: {})'.format(n_false, j, i))
+                            n_false = j - len(i)
+                            print('{} false negatives found (expected: {}, found: {})'.format(n_false, j, len(i)))
                             err_false_neg += n_false
 
         print('A total of {} false negative and {} false positive were for {} queries of 10 keywords.'.format(err_false_neg, err_false_pos, n_matches))
