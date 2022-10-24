@@ -37,7 +37,7 @@ class NamedEntityCategory(Enum):
     ORGANIZATION = "ORGANIZATION"
     PERSON = "PERSON"
     LOCATION = "LOCATION"
-    UNKNOW = "UNKNOWN"
+    UNKNOWN = "UNKNOWN"
 
     def __repr__(self):
         return self.name
