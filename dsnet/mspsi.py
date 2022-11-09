@@ -71,7 +71,7 @@ class MSPSIQuerier:
     """
 
     @staticmethod
-    def query(kwds: List[str]) -> Tuple[Bn, List[bytes]]:
+    def query(kwds: List[bytes]) -> Tuple[Bn, List[bytes]]:
         """
         Generate a query from the keywords.
         :param kwds: Set of keywords to be queried
@@ -83,7 +83,7 @@ class MSPSIQuerier:
         query_enc = list()
 
         for kwd in kwds:
-            kwd_pt = MSPSI_EC_CURVE.hash_to_point(kwd.encode())
+            kwd_pt = MSPSI_EC_CURVE.hash_to_point(kwd)
             kwd_enc = secret * kwd_pt
             kwd_enc_bytes: bytes = kwd_enc.export()
             query_enc.append(kwd_enc_bytes)
@@ -91,30 +91,32 @@ class MSPSIQuerier:
         return secret, query_enc
 
     @staticmethod
-    def process_reply(secret: Bn, reply: List[bytes], documents_number: int, published_hashes: BCuckooFilter) -> List[List[int]]:
-        """
-        Compute the cardinalyty of the intersection of sets between the reply to a query
-        and the list of lists of points published by the server.
-        :param secret: secret with which the query was encrypted
-        :param reply: reply from the server
-        :param documents_number: the number of documents (to generate their IDs)
-        :param published_hashes: list of keywords hashes published by the server as a cuckoo filter
-        :return: list of cardinalities for the intersection between the reply and each published list of points.
-        """
-
-        secret_inv = secret.mod_inverse(MSPSI_EC_CURVE.order())
-        kwds_per_docs: List[List[int]] = []
-
-        # For optimisation the following assumptions are made
-        # - all keywords in the query are different.
-        # - all keywords in the document are different.
+    def decode_reply(secret: Bn, reply: List[bytes]) -> List[bytes]:
         kwds_dec: List[bytes] = []
-
+        secret_inv = secret.mod_inverse(MSPSI_EC_CURVE.order())
         for kwd_h in reply:
             kwd_pt = EcPt.from_binary(kwd_h, MSPSI_EC_CURVE)
             kwd_pt_dec = secret_inv * kwd_pt
             kwd_bytes = kwd_pt_dec.export()
             kwds_dec.append(kwd_bytes)
+        return kwds_dec
+
+    @staticmethod
+    def process_reply(kwds_dec: List[bytes], documents_number: int, published_hashes: BCuckooFilter) -> List[List[int]]:
+        """
+        Compute the cardinalyty of the intersection of sets between the reply to a query
+        and the list of lists of points published by the server.
+        :param kwds_dec: decoded keywords
+        :param documents_number: the number of documents (to generate their IDs)
+        :param published_hashes: list of keywords hashes published by the server as a cuckoo filter
+        :return: list of cardinalities for the intersection between the reply and each published list of points.
+        """
+
+        kwds_per_docs: List[List[int]] = []
+
+        # For optimisation the following assumptions are made
+        # - all keywords in the query are different.
+        # - all keywords in the document are different.
 
         for doc_id in range(documents_number):
             matches = []
