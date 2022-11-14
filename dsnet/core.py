@@ -2,9 +2,12 @@ from __future__ import annotations
 
 from collections import OrderedDict
 from datetime import datetime
+from enum import IntEnum
 from typing import List, Optional
 
 from cryptography.exceptions import InvalidTag
+from petlib.bn import Bn
+from sscred import packb
 
 from dsnet.crypto import compute_address, compute_sym_key, pad_message, encrypt, decrypt, unpad_message, \
     get_public_key, compute_dhke
@@ -13,9 +16,21 @@ from dsnet.logger import logger
 from dsnet.message import PigeonHoleMessage, Query
 
 # Length of exchanged messages in bytes.
+from dsnet.mspsi import MSPSIQuerier
 from dsnet.token import AbeToken
+from dsnet.tokenizer import tokenize_with_double_quotes
 
 PH_MESSAGE_LENGTH: int = 2048
+
+
+class QueryType(IntEnum):
+    CLEARTEXT = 0
+    DPSI = 1
+    CPSI = 2
+
+
+class InvalidQueryType(ValueError):
+    """The query type is not valid."""
 
 
 class PigeonHole:
@@ -102,14 +117,18 @@ class Conversation:
                  querier: bool = False,
                  created_at: Optional[datetime] = None,
                  query: Optional[bytes] = None,
+                 query_type: QueryType = QueryType.CLEARTEXT,
+                 query_psi_secret: Optional[Bn] = None,
                  pigeonholes: List[PigeonHole] = None,
                  messages: List[PigeonHoleMessage] = None,
                  id: Optional[int] = None
-                 ) -> None:
+    ) -> None:
         self.secret_key = secret_key
         self.public_key = get_public_key(secret_key)
         self.other_public_key = other_public_key
         self.query = query
+        self.query_type = query_type
+        self.query_psi_secret = query_psi_secret
         self.querier = querier
         self.created_at = datetime.now() if created_at is None else created_at
         self._messages: List[PigeonHoleMessage] = list() if messages is None else messages
@@ -126,6 +145,7 @@ class Conversation:
             secret_key: bytes,
             other_public_key: bytes,
             query: bytes,
+            query_type: QueryType = QueryType.CLEARTEXT,
             pigeonholes: List[PigeonHole] = None,
             messages: List[PigeonHoleMessage] = None
     ) -> Conversation:
@@ -135,6 +155,7 @@ class Conversation:
             other_public_key,
             querier=True,
             query=query,
+            query_type=query_type,
             pigeonholes=pigeonholes,
             messages=messages
         )
@@ -150,6 +171,7 @@ class Conversation:
             cls,
             secret_key: bytes,
             other_public_key: bytes,
+            query_type: QueryType = QueryType.CLEARTEXT,
             pigeonholes: List[PigeonHole] = None,
             messages: List[PigeonHoleMessage] = None
     ) -> Conversation:
@@ -159,6 +181,7 @@ class Conversation:
             other_public_key,
             querier=False,
             query=None,
+            query_type=query_type,
             pigeonholes=pigeonholes,
             messages=messages
         )
@@ -167,12 +190,24 @@ class Conversation:
             conversation._messages.append(PigeonHoleMessage(None, None, from_key=conversation.other_public_key))
         return conversation
 
-    def create_query(self, token: AbeToken) -> Query:
+    def create_query(self, token: AbeToken) -> Optional[Query]:
         """
         Returns a new query object
         """
-        signature: bytes = token.sign(self.public_key + self.query)
-        return Query(self.public_key, token.token, signature, self.query) if self.query else None
+        if self.query is None:
+            return None
+
+        if self.query_type == QueryType.CLEARTEXT:
+            signature: bytes = token.sign(self.public_key + self.query)
+            return Query(self.public_key, token.token, signature, self.query)
+        elif self.query_type == QueryType.DPSI:
+            self.query_psi_secret, kwds = MSPSIQuerier.query(tokenize_with_double_quotes(self.query))
+            payload = packb(kwds)
+            signature: bytes = token.sign(self.public_key + payload)
+            return Query(self.public_key, token.token, signature, payload)
+
+        raise InvalidQueryType()
+
 
     def create_response(self, payload: bytes) -> PigeonHoleMessage:
         """

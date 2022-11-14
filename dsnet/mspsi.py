@@ -5,7 +5,7 @@ import datetime
 from enum import Enum
 from hashlib import blake2b
 from operator import attrgetter
-from typing import Generator, List, Tuple, AsyncGenerator, AsyncIterable, Iterator
+from typing import Generator, List, Tuple, AsyncGenerator, AsyncIterable, Iterator, Optional
 
 from petlib.bn import Bn
 from petlib.ec import EcGroup, EcPt
@@ -71,14 +71,15 @@ class MSPSIQuerier:
     """
 
     @staticmethod
-    def query(kwds: List[bytes]) -> Tuple[Bn, List[bytes]]:
+    def query(kwds: List[bytes], secret: Optional[Bn] = None) -> Tuple[Bn, List[bytes]]:
         """
         Generate a query from the keywords.
         :param kwds: Set of keywords to be queried
+        :param secret: ONLY FOR TESTS
         :return: A secret to generate the query and the query as a list of points on the EC.
         """
 
-        secret = MSPSI_EC_CURVE.order().random()
+        secret = MSPSI_EC_CURVE.order().random() if secret is None else secret
 
         query_enc = list()
 

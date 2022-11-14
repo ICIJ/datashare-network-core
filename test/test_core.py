@@ -5,9 +5,10 @@ from unittest import TestCase
 from cuckoo.filter import BCuckooFilter
 from sscred import AbeSignature, AbeParam, packb, AbeSigner
 
-from dsnet.core import PigeonHole, Conversation, PH_MESSAGE_LENGTH
+from dsnet.core import PigeonHole, Conversation, PH_MESSAGE_LENGTH, QueryType, InvalidQueryType
 from dsnet.crypto import gen_key_pair, pad_message
 from dsnet.message import Query, PigeonHoleNotification, PigeonHoleMessage, PublicationMessage
+from dsnet.mspsi import MSPSIQuerier
 from dsnet.token import generate_commitments, generate_challenges, generate_pretokens, generate_tokens, AbeToken
 
 
@@ -186,6 +187,46 @@ class TestConversation(TestCase):
         message = bob_conversation.create_response(b'bob message2')
         self.assertTrue(alice_conversation.is_receiving(message.address))
         alice_conversation.add_message(message)
+
+
+class TestConversationQueryTypes(TestCase):
+    def setUp(self) -> None:
+        self.bob_keys = gen_key_pair()
+        self.alice_keys = gen_key_pair()
+        self.conversation_keys = gen_key_pair()
+
+    def test_create_query_cleartext_by_default(self):
+        conversation = Conversation.create_from_querier(self.conversation_keys.secret, self.bob_keys.public, query=b'query')
+        self.assertEqual(conversation.query_type, QueryType.CLEARTEXT)
+
+        [token] = create_tokens(1)
+        query = conversation.create_query(token)
+        self.assertEqual(query.payload, conversation.query)
+
+    def test_create_query_dpsi(self):
+        conversation = Conversation.create_from_querier(self.conversation_keys.secret, self.bob_keys.public, query=b'query', query_type=QueryType.DPSI)
+        self.assertEqual(conversation.query_type, QueryType.DPSI)
+
+        [token] = create_tokens(1)
+        query = conversation.create_query(token)
+
+        _, query_kwd_encoded = MSPSIQuerier.query([b'query'], conversation.query_psi_secret)
+        self.assertEqual(query.payload, packb(query_kwd_encoded))
+
+    def test_create_query_dpsi_for_recipient(self):
+        conversation = Conversation.create_from_recipient(self.conversation_keys.secret, self.bob_keys.public, query_type=QueryType.DPSI)
+        self.assertEqual(conversation.query_type, QueryType.DPSI)
+
+        [token] = create_tokens(1)
+        self.assertIsNone(conversation.create_query(token))
+
+    def test_create_query_raise_unknown_type_for_CPSI(self):
+        conversation = Conversation.create_from_querier(self.conversation_keys.secret, self.bob_keys.public, query=b"bob", query_type=QueryType.CPSI)
+        self.assertEqual(conversation.query_type, QueryType.CPSI)
+
+        [token] = create_tokens(1)
+        with self.assertRaises(InvalidQueryType):
+            self.assertIsNone(conversation.create_query(token))
 
 
 class TestSerialization(TestCase):
