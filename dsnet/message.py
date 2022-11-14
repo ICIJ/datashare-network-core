@@ -76,7 +76,6 @@ class Query(Message):
 
         return token_server_public_key.verify_signature(self.token)
 
-
     def type(self) -> MessageType:
         return MessageType.QUERY
 

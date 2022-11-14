@@ -1,4 +1,4 @@
-from copy import deepcopy
+import datetime
 from typing import List
 from unittest import TestCase
 
@@ -8,9 +8,8 @@ from sscred import AbeSignature, AbeParam, packb, AbeSigner
 from dsnet.core import PigeonHole, Conversation, PH_MESSAGE_LENGTH, QueryType, InvalidQueryType
 from dsnet.crypto import gen_key_pair, pad_message
 from dsnet.message import Query, PigeonHoleNotification, PigeonHoleMessage, PublicationMessage
-from dsnet.mspsi import MSPSIQuerier
+from dsnet.mspsi import MSPSIQuerier, MSPSIDocumentOwner, Document, NamedEntity, NamedEntityCategory
 from dsnet.token import generate_commitments, generate_challenges, generate_pretokens, generate_tokens, AbeToken
-
 
 SERVER_SECRET_KEY, SERVER_PUBLIC_KEY = AbeParam().generate_new_key_pair()
 
@@ -91,7 +90,6 @@ class TestConversation(TestCase):
 
         query_invalid_public_key = Query(b"deadbeefc0febabe", query.token, query.signature, query.payload)
         assert not query_invalid_public_key.validate(SERVER_PUBLIC_KEY)
-
 
     def test_alice_sends_query_conversation(self):
         conversation = Conversation.create_from_querier(self.conversation_keys.secret, self.bob_keys.public, query=b'query')
@@ -227,6 +225,32 @@ class TestConversationQueryTypes(TestCase):
         [token] = create_tokens(1)
         with self.assertRaises(InvalidQueryType):
             self.assertIsNone(conversation.create_query(token))
+
+    def test_create_for_recipient_cleartext_by_default(self):
+        alice_conversation = Conversation.create_from_querier(self.conversation_keys.secret, self.bob_keys.public, query=b'foo', query_type=QueryType.DPSI)
+        conversation = Conversation.create_from_recipient(self.bob_keys.secret, self.conversation_keys.public, query_type=QueryType.DPSI)
+
+        [token] = create_tokens(1)
+        query = alice_conversation.create_query(token)
+
+        secret, cuckoo_filter = MSPSIDocumentOwner.publish(
+            iter(
+                (
+                    NamedEntity('doc_id', NamedEntityCategory.PERSON, 'foo'),
+                    NamedEntity('doc_id', NamedEntityCategory.PERSON, 'bar')
+                 )
+            ),
+            [
+                Document('doc_id', datetime.datetime.now())
+            ],
+            2
+        )
+        ph_message = conversation.create_response(query.payload, secret)
+
+        kwds_hashes = alice_conversation.mspsi_decode_query_response(ph_message)
+        results = MSPSIQuerier.process_reply(kwds_hashes, 1, cuckoo_filter)
+        self.assertEqual(len(results), 1)
+        self.assertEqual([0], results[0])
 
 
 class TestSerialization(TestCase):

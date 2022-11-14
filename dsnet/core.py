@@ -7,7 +7,7 @@ from typing import List, Optional
 
 from cryptography.exceptions import InvalidTag
 from petlib.bn import Bn
-from sscred import packb
+from sscred import packb, unpackb
 
 from dsnet.crypto import compute_address, compute_sym_key, pad_message, encrypt, decrypt, unpad_message, \
     get_public_key, compute_dhke
@@ -16,7 +16,7 @@ from dsnet.logger import logger
 from dsnet.message import PigeonHoleMessage, Query
 
 # Length of exchanged messages in bytes.
-from dsnet.mspsi import MSPSIQuerier
+from dsnet.mspsi import MSPSIQuerier, MSPSIDocumentOwner
 from dsnet.token import AbeToken
 from dsnet.tokenizer import tokenize_with_double_quotes
 
@@ -208,16 +208,28 @@ class Conversation:
 
         raise InvalidQueryType()
 
-
-    def create_response(self, payload: bytes) -> PigeonHoleMessage:
+    def create_response(self, payload: bytes, publication_secret: Optional[Bn] = None) -> PigeonHoleMessage:
         """
         Create a response to query
         """
         tmp_recipient_ph = self._create_recipient_pigeonhole()
-        message = PigeonHoleMessage(tmp_recipient_ph.address, tmp_recipient_ph.encrypt(payload), from_key=self.public_key)
+        if self.query_type == QueryType.CLEARTEXT:
+            encoded_payload = payload
+        elif self.query_type == QueryType.DPSI:
+            encoded_payload = packb(MSPSIDocumentOwner.reply(publication_secret, unpackb(payload)))
+        else:
+            raise InvalidQueryType()
+
+        message = PigeonHoleMessage(tmp_recipient_ph.address, tmp_recipient_ph.encrypt(encoded_payload), from_key=self.public_key)
         self._messages.append(PigeonHoleMessage(message.address, payload, from_key=self.public_key))
         self._create_and_save_next_pigeonhole()
         return message
+
+    def mspsi_decode_query_response(self, ph_message: PigeonHoleMessage) -> List[bytes]:
+        ph = self._pigeonholes.get(ph_message.address)
+        if ph is not None:
+            kwds = unpackb(ph.decrypt(ph_message.payload))
+            return MSPSIQuerier.decode_reply(self.query_psi_secret, kwds)
 
     def add_message(self, message: PigeonHoleMessage) -> Optional[PigeonHole]:
         """
