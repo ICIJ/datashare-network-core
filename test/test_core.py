@@ -218,7 +218,7 @@ class TestConversationQueryTypes(TestCase):
         [token] = create_tokens(1)
         self.assertIsNone(conversation.create_query(token))
 
-    def test_create_for_recipient_cleartext_by_default(self):
+    def test_query_response_dpsi(self):
         alice_conversation = Conversation.create_from_querier(self.conversation_keys.secret, self.bob_keys.public, query=b'foo', query_mspsi_secret=MSPSIQuerier.gen_key())
         conversation = Conversation.create_from_recipient(self.bob_keys.secret, self.conversation_keys.public, query_type=QueryType.DPSI)
 

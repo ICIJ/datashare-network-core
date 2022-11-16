@@ -156,7 +156,7 @@ class Conversation:
             querier=True,
             query=query,
             query_mspsi_secret=query_mspsi_secret,
-            query_type=QueryType.CLEARTEXT if query_mspsi_secret == None else QueryType.DPSI,
+            query_type=QueryType.CLEARTEXT if query_mspsi_secret is None else QueryType.DPSI,
             pigeonholes=pigeonholes,
             messages=messages
         )
