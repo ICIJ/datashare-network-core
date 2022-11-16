@@ -71,15 +71,19 @@ class MSPSIQuerier:
     """
 
     @staticmethod
+    def gen_key():
+        return MSPSI_EC_CURVE.order().random()
+
+    @staticmethod
     def query(kwds: List[bytes], secret: Optional[Bn] = None) -> Tuple[Bn, List[bytes]]:
         """
         Generate a query from the keywords.
         :param kwds: Set of keywords to be queried
-        :param secret: ONLY FOR TESTS
+        :param secret: secret to use for encrypting the query
         :return: A secret to generate the query and the query as a list of points on the EC.
         """
 
-        secret = MSPSI_EC_CURVE.order().random() if secret is None else secret
+        secret = MSPSIQuerier.gen_key() if secret is None else secret
 
         query_enc = list()
 

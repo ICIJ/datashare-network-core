@@ -118,7 +118,7 @@ class Conversation:
                  created_at: Optional[datetime] = None,
                  query: Optional[bytes] = None,
                  query_type: QueryType = QueryType.CLEARTEXT,
-                 query_psi_secret: Optional[Bn] = None,
+                 query_mspsi_secret: Optional[Bn] = None,
                  pigeonholes: List[PigeonHole] = None,
                  messages: List[PigeonHoleMessage] = None,
                  id: Optional[int] = None
@@ -128,7 +128,7 @@ class Conversation:
         self.other_public_key = other_public_key
         self.query = query
         self.query_type = query_type
-        self.query_psi_secret = query_psi_secret
+        self.query_mspsi_secret = query_mspsi_secret
         self.querier = querier
         self.created_at = datetime.now() if created_at is None else created_at
         self._messages: List[PigeonHoleMessage] = list() if messages is None else messages
@@ -145,7 +145,7 @@ class Conversation:
             secret_key: bytes,
             other_public_key: bytes,
             query: bytes,
-            query_type: QueryType = QueryType.CLEARTEXT,
+            query_mspsi_secret: Bn = None,
             pigeonholes: List[PigeonHole] = None,
             messages: List[PigeonHoleMessage] = None
     ) -> Conversation:
@@ -155,7 +155,8 @@ class Conversation:
             other_public_key,
             querier=True,
             query=query,
-            query_type=query_type,
+            query_mspsi_secret=query_mspsi_secret,
+            query_type=QueryType.CLEARTEXT if query_mspsi_secret == None else QueryType.DPSI,
             pigeonholes=pigeonholes,
             messages=messages
         )
@@ -201,7 +202,7 @@ class Conversation:
             signature: bytes = token.sign(self.public_key + self.query)
             return Query(self.public_key, token.token, signature, self.query)
         elif self.query_type == QueryType.DPSI:
-            self.query_psi_secret, kwds = MSPSIQuerier.query(tokenize_with_double_quotes(self.query))
+            _, kwds = MSPSIQuerier.query(tokenize_with_double_quotes(self.query), self.query_mspsi_secret)
             payload = packb(kwds)
             signature: bytes = token.sign(self.public_key + payload)
             return Query(self.public_key, token.token, signature, payload)
@@ -229,7 +230,7 @@ class Conversation:
         ph = self._pigeonholes.get(ph_message.address)
         if ph is not None:
             kwds = unpackb(ph.decrypt(ph_message.payload))
-            return MSPSIQuerier.decode_reply(self.query_psi_secret, kwds)
+            return MSPSIQuerier.decode_reply(self.query_mspsi_secret, kwds)
 
     def add_message(self, message: PigeonHoleMessage) -> Optional[PigeonHole]:
         """

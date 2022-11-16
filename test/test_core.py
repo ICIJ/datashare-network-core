@@ -202,13 +202,13 @@ class TestConversationQueryTypes(TestCase):
         self.assertEqual(query.payload, conversation.query)
 
     def test_create_query_dpsi(self):
-        conversation = Conversation.create_from_querier(self.conversation_keys.secret, self.bob_keys.public, query=b'query', query_type=QueryType.DPSI)
+        conversation = Conversation.create_from_querier(self.conversation_keys.secret, self.bob_keys.public, query=b'query', query_mspsi_secret=MSPSIQuerier.gen_key())
         self.assertEqual(conversation.query_type, QueryType.DPSI)
 
         [token] = create_tokens(1)
         query = conversation.create_query(token)
 
-        _, query_kwd_encoded = MSPSIQuerier.query([b'query'], conversation.query_psi_secret)
+        _, query_kwd_encoded = MSPSIQuerier.query([b'query'], conversation.query_mspsi_secret)
         self.assertEqual(query.payload, packb(query_kwd_encoded))
 
     def test_create_query_dpsi_for_recipient(self):
@@ -218,16 +218,8 @@ class TestConversationQueryTypes(TestCase):
         [token] = create_tokens(1)
         self.assertIsNone(conversation.create_query(token))
 
-    def test_create_query_raise_unknown_type_for_CPSI(self):
-        conversation = Conversation.create_from_querier(self.conversation_keys.secret, self.bob_keys.public, query=b"bob", query_type=QueryType.CPSI)
-        self.assertEqual(conversation.query_type, QueryType.CPSI)
-
-        [token] = create_tokens(1)
-        with self.assertRaises(InvalidQueryType):
-            self.assertIsNone(conversation.create_query(token))
-
     def test_create_for_recipient_cleartext_by_default(self):
-        alice_conversation = Conversation.create_from_querier(self.conversation_keys.secret, self.bob_keys.public, query=b'foo', query_type=QueryType.DPSI)
+        alice_conversation = Conversation.create_from_querier(self.conversation_keys.secret, self.bob_keys.public, query=b'foo', query_mspsi_secret=MSPSIQuerier.gen_key())
         conversation = Conversation.create_from_recipient(self.bob_keys.secret, self.conversation_keys.public, query_type=QueryType.DPSI)
 
         [token] = create_tokens(1)
