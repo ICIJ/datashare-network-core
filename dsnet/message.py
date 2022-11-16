@@ -99,7 +99,8 @@ add_msgpack_support(Query, Query.MSGPACK_ID, add_cls_methods=False)
 
 
 class PigeonHoleMessage(Message):
-    def __init__(self, address: Optional[bytes], payload: Optional[bytes], from_key: Optional[bytes] = None, timestamp: Optional[datetime] = None, conversation_id: Optional[int] = None):
+    def __init__(self, address: Optional[bytes], payload: Optional[bytes], from_key: Optional[bytes] = None, timestamp: Optional[datetime] = None, conversation_id: Optional[int] = None, msg_type: MessageType = MessageType.MESSAGE):
+        self.msg_type = msg_type
         self.address = address
         self.payload = payload
         self.from_key = from_key
@@ -107,22 +108,22 @@ class PigeonHoleMessage(Message):
         self.conversation_id = conversation_id
 
     def type(self) -> MessageType:
-        return MessageType.MESSAGE
+        return self.msg_type
 
     def to_bytes(self) -> bytes:
-        message = PigeonHoleMessagePayload(self.address, self.payload)
-        return packb(message)
+        return PigeonHoleMessagePayload(self.address, self.payload, self.msg_type).to_bytes()
 
     @classmethod
     def from_bytes(cls, payload) -> PigeonHoleMessage:
         ph_payload = unpackb(payload)
-        return cls(ph_payload.address, ph_payload.payload)
+        return cls(ph_payload.address, ph_payload.payload, msg_type=ph_payload.msg_type)
 
 
 class PigeonHoleMessagePayload:
     MSGPACK_ID = 101
 
-    def __init__(self, address: bytes, payload: bytes):
+    def __init__(self, address: bytes, payload: bytes, msg_type: MessageType = MessageType.MESSAGE):
+        self.msg_type = msg_type
         self.address = address
         self.payload = payload
 

@@ -7,7 +7,7 @@ from sscred import AbeSignature, AbeParam, packb, AbeSigner
 
 from dsnet.core import PigeonHole, Conversation, PH_MESSAGE_LENGTH, QueryType, InvalidQueryType
 from dsnet.crypto import gen_key_pair, pad_message
-from dsnet.message import Query, PigeonHoleNotification, PigeonHoleMessage, PublicationMessage
+from dsnet.message import Query, PigeonHoleNotification, PigeonHoleMessage, PublicationMessage, MessageType
 from dsnet.mspsi import MSPSIQuerier, MSPSIDocumentOwner, Document, NamedEntity, NamedEntityCategory
 from dsnet.token import generate_commitments, generate_challenges, generate_pretokens, generate_tokens, AbeToken
 
@@ -285,6 +285,19 @@ class TestSerialization(TestCase):
         self.assertIsInstance(deserialized, PigeonHoleMessage)
         self.assertEqual(deserialized.address, address)
         self.assertEqual(deserialized.payload, payload)
+        self.assertEqual(deserialized.type(), MessageType.MESSAGE)
+
+    def test_serialize_ph_response(self):
+        address = b'deadbeef01234567deadbeef01234567'
+        payload = b'encrypted'
+        ph_message = PigeonHoleMessage(address, payload, msg_type=MessageType.RESPONSE)
+        message = ph_message.to_bytes()
+        self.assertIsInstance(message, bytes)
+
+        deserialized = PigeonHoleMessage.from_bytes(message)
+        self.assertIsInstance(deserialized, PigeonHoleMessage)
+        self.assertEqual(deserialized.type(), MessageType.RESPONSE)
+
 
     def test_serialize_publication_message(self):
         keys = gen_key_pair()
