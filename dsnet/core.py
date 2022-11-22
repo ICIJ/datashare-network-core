@@ -198,33 +198,31 @@ class Conversation:
         if self.query is None:
             return None
 
+        kwds = tokenize_with_double_quotes(self.query)
         if self.query_type == QueryType.CLEARTEXT:
-            signature: bytes = token.sign(self.public_key + self.query)
-            return Query(self.public_key, token.token, signature, self.query)
+            pre_payload = kwds
         elif self.query_type == QueryType.DPSI:
-            _, kwds = MSPSIQuerier.query(tokenize_with_double_quotes(self.query), self.query_mspsi_secret)
-            payload = packb(kwds)
-            signature: bytes = token.sign(self.public_key + payload)
-            return Query(self.public_key, token.token, signature, payload)
+            _, pre_payload = MSPSIQuerier.query(kwds, self.query_mspsi_secret)
+        else:
+            raise InvalidQueryType()
 
-        raise InvalidQueryType()
+        payload = packb(pre_payload)
+        signature: bytes = token.sign(self.public_key + payload)
+        return Query(self.public_key, token.token, signature, payload)
 
-    def create_response(self, payload: bytes, publication_secret: Optional[Bn] = None) -> PigeonHoleMessage:
+    def create_response(self, payload: bytes) -> PigeonHoleMessage:
         """
         Create a response to query
         """
         tmp_recipient_ph = self._create_recipient_pigeonhole()
-        if self.query_type == QueryType.CLEARTEXT:
-            encoded_payload = payload
-        elif self.query_type == QueryType.DPSI:
-            encoded_payload = packb(MSPSIDocumentOwner.reply(publication_secret, unpackb(payload)))
-        else:
-            raise InvalidQueryType()
-
-        message = PigeonHoleMessage(tmp_recipient_ph.address, tmp_recipient_ph.encrypt(encoded_payload), from_key=self.public_key)
+        message = PigeonHoleMessage(tmp_recipient_ph.address, tmp_recipient_ph.encrypt(payload), from_key=self.public_key)
         self._messages.append(PigeonHoleMessage(message.address, payload, from_key=self.public_key))
         self._create_and_save_next_pigeonhole()
         return message
+
+    @staticmethod
+    def mspsi_encode_query_response(publication_secret: Bn, query_kwds: List[bytes]):
+        return packb(MSPSIDocumentOwner.reply(publication_secret, query_kwds))
 
     def mspsi_decode_query_response(self, ph_message: PigeonHoleMessage) -> List[bytes]:
         ph = self._pigeonholes.get(ph_message.address)
@@ -246,6 +244,15 @@ class Conversation:
                 return ph
             except InvalidTag:
                 logger.warning(f'failed to decrypt message at address {message.address.hex()}')
+
+    def add_results(self, results: bytes, ph: PigeonHole) -> None:
+        """
+        Add raw results to the conversation
+        TODO: how they are stored and presented ?
+        """
+        del self._pigeonholes[ph.address]
+        self._messages.append(PigeonHoleMessage(ph.address, results, from_key=ph.key_for_hash))
+        self._create_and_save_next_pigeonhole()
 
     @property
     def nb_sent_messages(self) -> int:

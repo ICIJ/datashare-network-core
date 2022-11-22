@@ -3,7 +3,7 @@ from typing import List
 from unittest import TestCase
 
 from cuckoo.filter import BCuckooFilter
-from sscred import AbeSignature, AbeParam, packb, AbeSigner
+from sscred import AbeSignature, AbeParam, packb, AbeSigner, unpackb
 
 from dsnet.core import PigeonHole, Conversation, PH_MESSAGE_LENGTH, QueryType, InvalidQueryType
 from dsnet.crypto import gen_key_pair, pad_message
@@ -101,7 +101,7 @@ class TestConversation(TestCase):
         self.assertEqual(conversation.nb_recv_messages, 0)
         self.assertEqual(conversation.nb_sent_messages, 1)
         self.assertEqual(self.conversation_keys.public, query.public_key)
-        self.assertEqual(b'query', query.payload)
+        self.assertEqual([b'query'], unpackb(query.payload))
         self.assertIsNotNone(conversation.last_address)
 
     def test_bob_receives_query_conversation(self):
@@ -199,7 +199,7 @@ class TestConversationQueryTypes(TestCase):
 
         [token] = create_tokens(1)
         query = conversation.create_query(token)
-        self.assertEqual(query.payload, conversation.query)
+        self.assertEqual(unpackb(query.payload), [conversation.query])
 
     def test_create_query_dpsi(self):
         conversation = Conversation.create_from_querier(self.conversation_keys.secret, self.bob_keys.public, query=b'query', query_mspsi_secret=MSPSIQuerier.gen_key())
@@ -237,12 +237,20 @@ class TestConversationQueryTypes(TestCase):
             ],
             2
         )
-        ph_message = conversation.create_response(query.payload, secret)
+        response_payload = conversation.mspsi_encode_query_response(secret, unpackb(query.payload))
+        ph_message = conversation.create_response(response_payload)
 
+        ph = alice_conversation.pigeonhole_for_address(ph_message.address)
+        ph.decrypt(ph_message.payload)
         kwds_hashes = alice_conversation.mspsi_decode_query_response(ph_message)
         results = MSPSIQuerier.process_reply(kwds_hashes, 1, cuckoo_filter)
         self.assertEqual(len(results), 1)
         self.assertEqual([0], results[0])
+
+        alice_conversation.add_results(packb(results), ph)
+        self.assertEqual(alice_conversation.nb_recv_messages, 1)
+        self.assertEqual(unpackb(alice_conversation.last_message.payload), results)
+        self.assertEqual(alice_conversation.last_message.from_key, self.bob_keys.public)
 
 
 class TestSerialization(TestCase):
