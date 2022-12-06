@@ -13,7 +13,7 @@ from dsnet.crypto import compute_address, compute_sym_key, pad_message, encrypt,
     get_public_key, compute_dhke
 from dsnet.logger import logger
 
-from dsnet.message import PigeonHoleMessage, Query
+from dsnet.message import PigeonHoleMessage, Query, MessageType
 
 # Length of exchanged messages in bytes.
 from dsnet.mspsi import MSPSIQuerier, MSPSIDocumentOwner
@@ -215,7 +215,7 @@ class Conversation:
         Create a response to query
         """
         tmp_recipient_ph = self._create_recipient_pigeonhole()
-        message = PigeonHoleMessage(tmp_recipient_ph.address, tmp_recipient_ph.encrypt(payload), from_key=self.public_key)
+        message = PigeonHoleMessage(tmp_recipient_ph.address, tmp_recipient_ph.encrypt(payload), from_key=self.public_key, msg_type=MessageType.RESPONSE)
         self._messages.append(PigeonHoleMessage(message.address, payload, from_key=self.public_key))
         self._create_and_save_next_pigeonhole()
         return message
