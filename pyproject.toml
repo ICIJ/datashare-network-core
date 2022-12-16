@@ -1,0 +1,36 @@
+[tool.poetry]
+name = "datashare-network-core"
+version = "0.13.1"
+description = "Datashare network core librairy"
+authors = ["ICIJ <engineering.org>"]
+license = "GNU Affero General Public License v3.0"
+readme = "README.md"
+repository = "https://github.com/ICIJ/datashare-network-core"
+keywords = ["datashare", "api", "network", "cryptography"]
+classifiers = [
+    "Intended Audience :: Developers",
+    "Natural Language :: English",
+    "Programming Language :: Python",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: Security :: Cryptography",
+    "License :: OSI Approved :: BSD License"
+]
+
+packages = [{include = "dsnet"}]
+
+[tool.poetry.dependencies]
+python = "^3.8"
+scalable-cuckoo-filter = "^1.1"
+sscred = { git = "https://github.com/ICIJ/SSCred/", tag = "0.3.4" }
+cryptography = "^38.0.4"
+
+[tool.poetry.group.dev.dependencies]
+pytest = "^7.2.0"
+pytest-watch = "^4.2.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"

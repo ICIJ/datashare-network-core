@@ -5,7 +5,7 @@ from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from sscred import unpackb, packb
 
 from dsnet.token import AbeToken
-from test.test_core import create_tokens
+from tests.test_core import create_tokens
 
 
 class TestToken(TestCase):
