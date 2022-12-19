@@ -13,7 +13,7 @@ install: poetry_install
 poetry_install:
 		poetry install
 
-test:
+tests:
 		poetry run pytest
 
 test-watch:
@@ -35,4 +35,4 @@ distribute:
 		poetry publish --build
 		
 show-updates:
-	poetry show --latest --outdated
+		poetry show --latest --outdated

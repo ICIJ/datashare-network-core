@@ -10,7 +10,7 @@ To develop, [install Poetry](https://python-poetry.org/docs/#installation) then 
 
 ```
 make install
-make test
+make tests
 ```
 
 To run tests with watcher:
