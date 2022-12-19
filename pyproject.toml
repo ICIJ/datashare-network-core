@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "datashare-network-core"
-version = "0.13.4"
+version = "0.13.5"
 description = "Datashare network core librairy"
 authors = ["ICIJ <engineering.org>"]
 license = "GNU Affero General Public License v3.0"
