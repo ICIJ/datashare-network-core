@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "datashare-network-core"
-version = "0.13.3"
+version = "0.13.4"
 description = "Datashare network core librairy"
 authors = ["ICIJ <engineering.org>"]
 license = "GNU Affero General Public License v3.0"
@@ -24,7 +24,7 @@ packages = [{include = "dsnet"}]
 [tool.poetry.dependencies]
 python = "^3.8"
 scalable-cuckoo-filter = "^1.1"
-sscred = { git = "https://github.com/ICIJ/SSCred.git", tag = "0.3.4" }
+sscred = { git = "https://github.com/ICIJ/SSCred.git" }
 cryptography = "^38.0.4"
 
 [tool.poetry.group.dev.dependencies]
