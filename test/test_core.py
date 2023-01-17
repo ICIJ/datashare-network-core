@@ -251,6 +251,7 @@ class TestConversationQueryTypes(TestCase):
         alice_conversation.add_results(packb(results), ph)
         self.assertEqual(alice_conversation.nb_recv_messages, 1)
         self.assertEqual(unpackb(alice_conversation.last_message.payload), results)
+        self.assertEqual(alice_conversation.last_message.type(), MessageType.RESPONSE)
         self.assertEqual(alice_conversation.last_message.from_key, self.bob_keys.public)
 
 

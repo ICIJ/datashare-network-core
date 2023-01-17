@@ -253,7 +253,7 @@ class Conversation:
         TODO: how they are stored and presented ?
         """
         del self._pigeonholes[ph.address]
-        self._messages.append(PigeonHoleMessage(ph.address, results, from_key=ph.key_for_hash))
+        self._messages.append(PigeonHoleMessage(ph.address, results, from_key=ph.key_for_hash, msg_type=MessageType.RESPONSE))
         self._create_and_save_next_pigeonhole()
 
     @property
