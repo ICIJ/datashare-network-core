@@ -173,6 +173,7 @@ class Conversation:
             secret_key: bytes,
             other_public_key: bytes,
             query_type: QueryType = QueryType.CLEARTEXT,
+            query_mspsi_secret: Optional[Bn] = None,
             pigeonholes: List[PigeonHole] = None,
             messages: List[PigeonHoleMessage] = None
     ) -> Conversation:
@@ -183,6 +184,7 @@ class Conversation:
             querier=False,
             query=None,
             query_type=query_type,
+            query_mspsi_secret=query_mspsi_secret,
             pigeonholes=pigeonholes,
             messages=messages
         )
