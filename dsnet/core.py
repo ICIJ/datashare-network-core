@@ -218,7 +218,7 @@ class Conversation:
         """
         tmp_recipient_ph = self._create_recipient_pigeonhole()
         message = PigeonHoleMessage(tmp_recipient_ph.address, tmp_recipient_ph.encrypt(payload), from_key=self.public_key, msg_type=MessageType.RESPONSE)
-        self._messages.append(PigeonHoleMessage(message.address, payload, from_key=self.public_key))
+        self._messages.append(PigeonHoleMessage(message.address, payload, from_key=self.public_key, msg_type=message.type()))
         self._create_and_save_next_pigeonhole()
         return message
 

@@ -113,6 +113,7 @@ class TestConversation(TestCase):
         self.assertEqual(conversation.nb_recv_messages, 1)
         self.assertEqual(conversation.nb_sent_messages, 1)
         self.assertEqual(response.type(), MessageType.RESPONSE)
+        self.assertEqual(conversation.last_message.type(), MessageType.RESPONSE)
         self.assertEqual(alice_conversation.last_address.hex(), response.address.hex())
         self.assertIsNotNone(response.payload)
 
