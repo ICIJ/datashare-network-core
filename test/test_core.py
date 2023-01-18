@@ -103,6 +103,7 @@ class TestConversation(TestCase):
         self.assertEqual(self.conversation_keys.public, query.public_key)
         self.assertEqual([b'query'], unpackb(query.payload))
         self.assertIsNotNone(conversation.last_address)
+        self.assertEqual(conversation.last_message.type(), MessageType.QUERY)
 
     def test_bob_receives_query_conversation(self):
         alice_conversation = Conversation.create_from_querier(self.conversation_keys.secret, self.bob_keys.public, query=b'query')

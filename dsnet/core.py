@@ -162,7 +162,7 @@ class Conversation:
         )
 
         if messages is None:
-            conversation._messages.append(PigeonHoleMessage(None, query, from_key=conversation.public_key))
+            conversation._messages.append(PigeonHoleMessage(None, query, from_key=conversation.public_key, msg_type=MessageType.QUERY))
             conversation._create_and_save_next_pigeonhole()
 
         return conversation
