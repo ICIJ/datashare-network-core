@@ -6,6 +6,7 @@ from enum import IntEnum
 from typing import Optional
 
 from bitarray import bitarray
+from bitarray.util import serialize as ba_serialize, deserialize as ba_deserialize
 from cryptography.exceptions import InvalidSignature
 from cuckoo.filter import BCuckooFilter
 from sscred import AbeSignature, packb, unpackb, AbePublicKey
@@ -195,17 +196,13 @@ def add_cuckoo_filter_msgpack_support(ext):
             "error_rate": obj.__dict__["error_rate"],
             "fingerprint_size": obj.__dict__["fingerprint_size"],
             "size": obj.__dict__["size"],
-            "buckets_len": len(obj.__dict__["buckets"]),
-            "buckets": obj.__dict__["buckets"].tobytes(),
+            "buckets": ba_serialize(obj.__dict__["buckets"]),
         }
         return packb(d)
 
     def dec(data):
         obj = BCuckooFilter.__new__(BCuckooFilter)
         raw = unpackb(data)
-        bucket_len = raw["buckets_len"]
-        buckets = bitarray(endian="little")
-        buckets.frombytes(raw["buckets"])
         d = {
             "capacity": raw["capacity"],
             "bucket_size": raw["bucket_size"],
@@ -213,7 +210,7 @@ def add_cuckoo_filter_msgpack_support(ext):
             "error_rate": raw["error_rate"],
             "fingerprint_size": raw["fingerprint_size"],
             "size": raw["size"],
-            "buckets": buckets[:bucket_len]
+            "buckets": ba_deserialize(raw["buckets"])
         }
         obj.__dict__.update(d)
         return obj
